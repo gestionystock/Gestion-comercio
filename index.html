@@ -1,71 +1,269 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#172554">
 <title>Mi Comercio</title>
+
 <style>
-body {
-  margin: 0;
-  padding: 20px;
-  font-family: Arial, sans-serif;
-  background: #f1f5f9;
-  color: #172554;
+*{box-sizing:border-box}
+body{
+ margin:0;padding:16px;
+ font-family:Arial,sans-serif;
+ background:#f1f5f9;color:#172554
 }
-header {
-  background: #172554;
-  color: white;
-  padding: 24px;
-  border-radius: 16px;
-  margin-bottom: 20px;
+header{
+ background:#172554;color:white;
+ padding:22px;border-radius:16px;
+ margin-bottom:18px
 }
-.card {
-  background: white;
-  padding: 20px;
-  margin-bottom: 14px;
-  border-radius: 14px;
+header h1{margin:0 0 6px}
+.summary{
+ display:flex;gap:10px;margin-bottom:16px
 }
-button {
-  width: 100%;
-  padding: 15px;
-  border: none;
-  border-radius: 10px;
-  background: #2563eb;
-  color: white;
-  font-size: 16px;
+.summary div{
+ background:white;padding:14px;
+ border-radius:12px;flex:1
 }
+.card{
+ background:white;padding:17px;
+ border-radius:14px;margin-bottom:14px
+}
+input{
+ width:100%;padding:13px;
+ margin:7px 0 12px;
+ border:1px solid #cbd5e1;
+ border-radius:9px;font-size:16px
+}
+button{
+ padding:13px;border:0;
+ border-radius:9px;
+ background:#2563eb;color:white;
+ font-size:15px;cursor:pointer
+}
+.primary{width:100%}
+.secondary{background:#64748b}
+.danger{background:#dc2626}
+.actions{display:flex;gap:8px;margin-top:10px}
+.actions button{flex:1}
+.product{
+ background:#f8fafc;padding:14px;
+ border:1px solid #e2e8f0;
+ border-radius:12px;margin-top:10px
+}
+.product h3{margin:0 0 8px}
+.muted{color:#64748b;font-size:13px}
+.price{font-size:19px;font-weight:bold;color:#15803d}
+label{font-weight:bold;font-size:14px}
+h2{font-size:19px}
 </style>
 </head>
+
 <body>
 
 <header>
-  <h1>Mi Comercio</h1>
-  <p>Sistema de gestión</p>
+<h1>Mi Comercio</h1>
+<p>Sistema de gestión</p>
+<small>Panel de productos</small>
 </header>
 
-<div class="card">
-  <h2>📦 Productos</h2>
-  <p>Administración de productos y stock.</p>
-  <button onclick="alert('Próximamente')">Ingresar</button>
+<div class="summary">
+ <div>
+  <small>Productos</small>
+  <h2 id="total">0</h2>
+ </div>
+ <div>
+  <small>Unidades</small>
+  <h2 id="units">0</h2>
+ </div>
 </div>
 
-<div class="card">
-  <h2>🛒 Ventas</h2>
-  <p>Registro y control de ventas.</p>
-  <button onclick="alert('Próximamente')">Ingresar</button>
-</div>
+<section class="card">
+<h2 id="formTitle">➕ Nuevo producto</h2>
 
-<div class="card">
-  <h2>💰 Caja</h2>
-  <p>Control de ingresos y egresos.</p>
-  <button onclick="alert('Próximamente')">Ingresar</button>
-</div>
+<form id="productForm">
+ <label>Nombre del producto</label>
+ <input id="name" placeholder="Ej: Arroz 1 kg" required>
 
-<div class="card">
-  <h2>📊 Informes</h2>
-  <p>Resumen del comercio.</p>
-  <button onclick="alert('Próximamente')">Ingresar</button>
-</div>
+ <label>Código de barras</label>
+ <input id="barcode" placeholder="Ej: TEST-0001" required>
+
+ <label>Precio de venta ($)</label>
+ <input id="price" type="number" min="0" step="0.01" placeholder="2500" required>
+
+ <label>Cantidad en stock</label>
+ <input id="stock" type="number" min="0" step="1" placeholder="10" required>
+
+ <button class="primary" type="submit" id="saveBtn">
+ Guardar producto
+ </button>
+ <button class="primary secondary" type="button"
+ onclick="resetForm()" id="cancelBtn" hidden>
+ Cancelar edición
+ </button>
+</form>
+</section>
+
+<section class="card">
+<h2>📦 Inventario</h2>
+<input id="search" placeholder="🔎 Buscar por nombre o código...">
+<div id="products"></div>
+</section>
+
+<footer class="muted" style="text-align:center;padding:20px">
+Mi Comercio · Gestión de stock
+</footer>
+
+<script>
+const KEY = "mi_comercio_productos_v1";
+
+const examples = [
+["Gaseosa cola 2,25 L","TEST-0001",2800,15],
+["Arroz 1 kg","TEST-0002",1800,20],
+["Aceite 900 ml","TEST-0003",3200,12],
+["Azúcar 1 kg","TEST-0004",1500,18],
+["Yerba 1 kg","TEST-0005",4500,10],
+["Fideos 500 g","TEST-0006",1200,25],
+["Leche 1 L","TEST-0007",1700,16],
+["Galletitas 300 g","TEST-0008",2100,14],
+["Detergente 750 ml","TEST-0009",2600,8],
+["Jabón de tocador","TEST-0010",1300,30]
+];
+
+let products = [];
+let editing = null;
+
+try {
+ products = JSON.parse(localStorage.getItem(KEY)) || [];
+} catch(e) {
+ products = [];
+}
+
+if(products.length === 0 &&
+ localStorage.getItem(KEY) === null) {
+ products = examples.map((p,i)=>({
+ id:i+1,name:p[0],barcode:p[1],
+ price:p[2],stock:p[3]
+ }));
+ save();
+}
+
+function save(){
+ localStorage.setItem(KEY,JSON.stringify(products));
+ render();
+}
+
+function money(value){
+ return "$"+Number(value).toLocaleString("es-AR");
+}
+
+function escapeHTML(value){
+ return String(value).replace(/[&<>"']/g,
+ c=>({"&":"&amp;","<":"&lt;",">":"&gt;",
+ '"':"&quot;","'":"&#39;"}[c]));
+}
+
+function render(){
+ const query=document.getElementById("search").value.toLowerCase();
+
+ document.getElementById("total").textContent=products.length;
+ document.getElementById("units").textContent=
+ products.reduce((sum,p)=>sum+Number(p.stock),0);
+
+ const filtered=products.filter(p=>
+ p.name.toLowerCase().includes(query) ||
+ p.barcode.toLowerCase().includes(query)
+ );
+
+ document.getElementById("products").innerHTML=
+ filtered.length ? filtered.map(p=>`
+ <div class="product">
+  <h3>${escapeHTML(p.name)}</h3>
+  <div class="muted">Código: ${escapeHTML(p.barcode)}</div>
+  <p class="price">${money(p.price)}</p>
+  <p>Stock: <b>${p.stock}</b> unidades</p>
+  <div class="actions">
+   <button onclick="editProduct(${p.id})">Editar</button>
+   <button class="danger" onclick="deleteProduct(${p.id})">Eliminar</button>
+  </div>
+ </div>
+ `).join("") : "<p>No se encontraron productos.</p>";
+}
+
+document.getElementById("productForm").addEventListener("submit",e=>{
+ e.preventDefault();
+
+ const name=document.getElementById("name").value.trim();
+ const barcode=document.getElementById("barcode").value.trim();
+ const price=Number(document.getElementById("price").value);
+ const stock=Number(document.getElementById("stock").value);
+
+ if(!name || !barcode || price<0 || stock<0 ||
+ !Number.isFinite(price) || !Number.isInteger(stock)){
+  alert("Revisá los datos ingresados.");
+  return;
+ }
+
+ const duplicate=products.find(p=>
+ p.barcode.toLowerCase()===barcode.toLowerCase() &&
+ p.id!==editing
+ );
+
+ if(duplicate){
+  alert("Ese código ya está registrado.");
+  return;
+ }
+
+ if(editing!==null){
+  const p=products.find(p=>p.id===editing);
+  Object.assign(p,{name,barcode,price,stock});
+ }else{
+  products.push({
+   id:Date.now(),name,barcode,price,stock
+  });
+ }
+
+ save();
+ resetForm();
+});
+
+function editProduct(id){
+ const p=products.find(p=>p.id===id);
+ if(!p)return;
+
+ editing=id;
+ document.getElementById("name").value=p.name;
+ document.getElementById("barcode").value=p.barcode;
+ document.getElementById("price").value=p.price;
+ document.getElementById("stock").value=p.stock;
+ document.getElementById("formTitle").textContent="✏️ Editar producto";
+ document.getElementById("saveBtn").textContent="Guardar cambios";
+ document.getElementById("cancelBtn").hidden=false;
+ document.getElementById("name").scrollIntoView({behavior:"smooth"});
+}
+
+function deleteProduct(id){
+ if(!confirm("¿Querés eliminar este producto?"))return;
+ products=products.filter(p=>p.id!==id);
+ save();
+ if(editing===id)resetForm();
+}
+
+function resetForm(){
+ editing=null;
+ document.getElementById("productForm").reset();
+ document.getElementById("formTitle").textContent="➕ Nuevo producto";
+ document.getElementById("saveBtn").textContent="Guardar producto";
+ document.getElementById("cancelBtn").hidden=true;
+}
+
+document.getElementById("search").addEventListener("input",render);
+
+render();
+</script>
 
 </body>
 </html>
+
