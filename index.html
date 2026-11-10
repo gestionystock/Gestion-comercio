@@ -1,27 +1,240 @@
-Mi Comercio
-Gestión integral · versión de prueba
-1. Recepción
-2. Depósito
-3. Local de ventas
-4. Facturación
-5. Base de datos
-1. Recepción de productos
-Datos de recepción y factura
-Fecha de recepción
-Proveedor
-Factura / remito
-Observaciones
-Producto recibido
-Nombre del producto
-Código de barras
-Cantidad
-Fecha de vencimiento
-Costo unitario
-Precio de venta
-Registrar recepción
-Limpiar
-Cada recepción crea un lote separado para seguir su vencimiento y costo. La mercadería ingresa al depósito interno.
-Historial de recepciones
 
-Mi Comercio · Datos guardados en este dispositivo
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#172554">
+<title>Mi Comercio Integral</title>
 
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;
+ padding:12px;
+ font-family:Arial,sans-serif;
+ background:#f1f5f9;
+ color:#172554;
+}
+header{
+ background:#172554;
+ color:white;
+ padding:20px;
+ border-radius:14px;
+ margin-bottom:14px;
+}
+header h1{margin:0 0 6px;font-size:24px}
+header p{margin:0;color:#cbd5e1}
+nav{
+ display:grid;
+ grid-template-columns:repeat(2,1fr);
+ gap:8px;
+ margin-bottom:15px;
+}
+nav button{
+ border:0;
+ border-radius:9px;
+ padding:13px 5px;
+ background:#dbeafe;
+ color:#172554;
+ font-weight:bold;
+}
+nav button.active{
+ background:#172554;
+ color:white;
+}
+section{display:none}
+section.active{display:block}
+.card{
+ background:white;
+ padding:15px;
+ border-radius:12px;
+ margin-bottom:13px;
+ box-shadow:0 2px 7px #0000000d;
+}
+h2{font-size:20px;margin:5px 0 15px}
+h3{font-size:16px;margin:8px 0 12px}
+label{
+ display:block;
+ font-size:13px;
+ font-weight:bold;
+ margin:11px 0 5px;
+}
+input,select,textarea{
+ width:100%;
+ padding:12px;
+ border:1px solid #cbd5e1;
+ border-radius:8px;
+ font-size:15px;
+ background:white;
+ color:#172554;
+}
+textarea{min-height:75px}
+button{cursor:pointer}
+.action{
+ background:#1d4ed8;
+ color:white;
+ border:0;
+ padding:12px;
+ border-radius:8px;
+ font-weight:bold;
+ margin-top:10px;
+ width:100%;
+}
+.secondary{
+ background:#e2e8f0;
+ color:#172554;
+ border:0;
+ padding:10px;
+ border-radius:8px;
+}
+.danger{
+ background:#dc2626;
+ color:white;
+ border:0;
+ padding:8px;
+ border-radius:7px;
+}
+.small{padding:7px 10px;font-size:12px}
+.grid{
+ display:grid;
+ grid-template-columns:repeat(2,1fr);
+ gap:9px;
+}
+.stat{
+ background:#eff6ff;
+ padding:13px;
+ border-radius:9px;
+ font-size:12px;
+}
+.stat strong{
+ display:block;
+ font-size:20px;
+ margin-top:6px;
+}
+.item{
+ border:1px solid #e2e8f0;
+ padding:12px;
+ border-radius:9px;
+ margin:9px 0;
+ background:white;
+}
+.item p{font-size:13px;margin:6px 0}
+.green{color:#15803d}
+.orange{color:#c2410c}
+.red{color:#dc2626}
+.muted{color:#64748b;font-size:12px}
+.tablewrap{overflow-x:auto}
+table{
+ width:100%;
+ border-collapse:collapse;
+ font-size:12px;
+}
+td,th{
+ padding:9px 5px;
+ border-bottom:1px solid #e2e8f0;
+ text-align:left;
+}
+footer{
+ text-align:center;
+ color:#64748b;
+ font-size:11px;
+ padding:20px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+ <h1>Mi Comercio</h1>
+ <p>Sistema integral de gestión comercial</p>
+</header>
+
+<nav>
+ <button class="active" onclick="mostrar('recepcion',this)">📦 Recepción</button>
+ <button onclick="mostrar('deposito',this)">🏬 Depósito</button>
+ <button onclick="mostrar('local',this)">🛒 Local</button>
+ <button onclick="mostrar('facturacion',this)">📊 Facturación</button>
+ <button onclick="mostrar('base',this)">👥 Base de datos</button>
+</nav>
+
+<!-- DIVISION 1: RECEPCION -->
+
+<section id="recepcion" class="active">
+ <h2>📦 Recepción de mercadería</h2>
+
+ <div class="card">
+  <h3>Nueva recepción</h3>
+
+  <label>Fecha de recepción</label>
+  <input type="date" id="rFecha">
+
+  <label>Proveedor</label>
+  <input id="rProveedor" placeholder="Nombre del proveedor">
+
+  <label>Número de factura</label>
+  <input id="rFactura" placeholder="Número de factura">
+
+  <label>Código de barras</label>
+  <input id="rCodigo" placeholder="Código de barras">
+
+  <label>Nombre del producto</label>
+  <input id="rNombre" placeholder="Nombre del producto">
+
+  <label>Cantidad recibida</label>
+  <input id="rCantidad" type="number" min="1">
+
+  <label>Fecha de vencimiento</label>
+  <input id="rVencimiento" type="date">
+
+  <label>Costo unitario</label>
+  <input id="rCosto" type="number" min="0" step="0.01">
+
+  <label>Precio de venta</label>
+  <input id="rPrecio" type="number" min="0" step="0.01">
+
+  <button class="action" onclick="registrarRecepcion()">
+   Registrar mercadería
+  </button>
+ </div>
+
+ <div class="card">
+  <h3>Historial de recepciones</h3>
+  <div id="historialRecepciones"></div>
+ </div>
+</section>
+
+<!-- DIVISION 2: DEPOSITO -->
+
+<section id="deposito">
+ <h2>🏬 Depósito interno</h2>
+ <div id="contenidoDeposito"></div>
+</section>
+
+<!-- DIVISION 3: LOCAL -->
+
+<section id="local">
+ <h2>🛒 Gestión del local</h2>
+ <div id="contenidoLocal"></div>
+</section>
+
+<!-- DIVISION 4: FACTURACION -->
+
+<section id="facturacion">
+ <h2>📊 Facturación y estadísticas</h2>
+ <div id="contenidoFacturacion"></div>
+</section>
+
+<!-- DIVISION 5: BASE DE DATOS -->
+
+<section id="base">
+ <h2>👥 Base de datos</h2>
+ <div id="contenidoBase"></div>
+</section>
+
+<footer>
+ Mi Comercio Integral
+</footer>
+</body>
+</html>
