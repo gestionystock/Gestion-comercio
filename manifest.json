@@ -1,0 +1,13 @@
+
+{
+  "name": "Mi Comercio Integral",
+  "short_name": "Mi Comercio",
+  "description": "Sistema integral de gestión comercial, inventario, ventas y estadísticas.",
+  "lang": "es-AR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f1f5f9",
+  "theme_color": "#172554"
+}
