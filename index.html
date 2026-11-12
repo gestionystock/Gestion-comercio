@@ -441,3 +441,1130 @@ La restauración reemplaza los datos actuales. Descargá primero una copia de se
 </div>
 
 <footer>Mi Comercio Integral · Datos guardados en este dispositivo</footer>
+
+
+<script>
+"use strict";
+
+/* CONFIGURACIÓN GENERAL */
+
+const STORAGE_KEY="mi_comercio_integral_v4";
+const OLD_KEYS=[
+ "mi_comercio_integral_v3",
+ "mi_comercio_integral_v2",
+ "mi_comercio_productos_v1"
+];
+
+const BACKUP_LIMPIEZA_KEY="mi_comercio_respaldo_pre_limpieza_v1";
+
+const $=id=>document.getElementById(id);
+
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,9);
+
+function hoy(){
+ const d=new Date();
+ const y=d.getFullYear();
+ const m=String(d.getMonth()+1).padStart(2,"0");
+ const day=String(d.getDate()).padStart(2,"0");
+ return `${y}-${m}-${day}`;
+}
+
+function fechaLocal(valor){
+ const d=valor instanceof Date?valor:new Date(valor);
+ if(Number.isNaN(d.getTime()))return "";
+ return [
+  d.getFullYear(),
+  String(d.getMonth()+1).padStart(2,"0"),
+  String(d.getDate()).padStart(2,"0")
+ ].join("-");
+}
+
+function money(n){
+ return Number(n||0).toLocaleString("es-AR",{
+  style:"currency",
+  currency:"ARS",
+  maximumFractionDigits:2
+ });
+}
+
+function esc(s){
+ return String(s??"").replace(/[&<>"']/g,c=>({
+  "&":"&amp;",
+  "<":"&lt;",
+  ">":"&gt;",
+  '"':"&quot;",
+  "'":"&#39;"
+ }[c]));
+}
+
+function numero(n,defecto=0){
+ const v=Number(n);
+ return Number.isFinite(v)?v:defecto;
+}
+
+/* ESTRUCTURA DE LA BASE DE DATOS */
+
+function nuevoDB(){
+ return {
+  version:4,
+  productos:[],
+  recepciones:[],
+  ventas:[],
+  empleados:[],
+  clientes:[]
+ };
+}
+
+function normalizarProducto(p){
+ if(!p||typeof p!=="object")return null;
+
+ let lotes=Array.isArray(p.lotes)?p.lotes:[];
+
+ if(!lotes.length&&numero(p.stock)>0){
+  lotes=[{
+   id:uid(),
+   cantidad:numero(p.stock),
+   vencimiento:p.vencimiento||"",
+   costo:numero(p.costo),
+   precio:numero(p.precio||p.venta),
+   fecha:p.fechaIngreso||hoy()
+  }];
+ }
+
+ return {
+  id:String(p.id||uid()),
+  codigo:String(p.codigo||p.barcode||""),
+  nombre:String(p.nombre||p.name||"Producto"),
+  lotes:lotes.map(l=>({
+   id:String(l.id||uid()),
+   cantidad:Math.max(0,numero(l.cantidad)),
+   vencimiento:String(l.vencimiento||""),
+   costo:Math.max(0,numero(l.costo)),
+   precio:Math.max(0,numero(l.precio)),
+   fecha:String(l.fecha||hoy())
+  }))
+ };
+}
+
+function normalizarDB(datos){
+ const base=nuevoDB();
+
+ if(!datos||typeof datos!=="object")return base;
+
+ return {
+  ...base,
+  version:4,
+  productos:Array.isArray(datos.productos)?
+   datos.productos.map(normalizarProducto).filter(Boolean):[],
+  recepciones:Array.isArray(datos.recepciones)?
+   datos.recepciones.filter(x=>x&&typeof x==="object"):[],
+  ventas:Array.isArray(datos.ventas)?
+   datos.ventas.filter(x=>x&&typeof x==="object"):[],
+  empleados:Array.isArray(datos.empleados)?
+   datos.empleados.filter(x=>x&&typeof x==="object"):[],
+  clientes:Array.isArray(datos.clientes)?
+   datos.clientes.filter(x=>x&&typeof x==="object"):[]
+ };
+}
+
+/* DETECCIÓN SEGURA DE PRODUCTOS DE DEMOSTRACIÓN */
+
+const PRODUCTOS_DEMO=[
+ {codigo:"7790001000011",nombre:"leche entera",cantidad:12,costo:900,precio:1300},
+ {codigo:"7790001000028",nombre:"galletitas dulces",cantidad:20,costo:650,precio:1000},
+ {codigo:"7790001000035",nombre:"arroz 1 kg",cantidad:15,costo:1100,precio:1600}
+];
+
+function esDemoOriginal(p){
+ if(!p)return false;
+
+ return PRODUCTOS_DEMO.some(d=>{
+  if(p.codigo!==d.codigo)return false;
+  if(String(p.nombre).trim().toLowerCase()!==d.nombre)return false;
+  if(!Array.isArray(p.lotes)||p.lotes.length!==1)return false;
+
+  const l=p.lotes[0];
+
+  return numero(l.cantidad)===d.cantidad&&
+   numero(l.costo)===d.costo&&
+   numero(l.precio)===d.precio&&
+   !l.vencimiento;
+ });
+}
+
+function limpiarDemoConRespaldo(datos,raw){
+ const cantidad=datos.productos.filter(esDemoOriginal).length;
+
+ if(!cantidad)return datos;
+
+ try{
+  localStorage.setItem(BACKUP_LIMPIEZA_KEY,raw);
+
+  datos.productos=datos.productos.filter(p=>!esDemoOriginal(p));
+
+  console.info("Productos de demostración retirados. Respaldo local conservado.");
+
+ }catch(e){
+  console.warn("No se pudo guardar el respaldo previo. Se conservaron los productos.",e);
+ }
+
+ return datos;
+}
+
+/* CARGA Y MIGRACIÓN */
+
+function cargarDB(){
+ try{
+  const actual=localStorage.getItem(STORAGE_KEY);
+
+  if(actual){
+   let datos=normalizarDB(JSON.parse(actual));
+   datos=limpiarDemoConRespaldo(datos,actual);
+   return datos;
+  }
+
+  for(const key of OLD_KEYS){
+   const raw=localStorage.getItem(key);
+   if(!raw)continue;
+
+   let anterior=JSON.parse(raw);
+   if(Array.isArray(anterior)){
+    anterior={productos:anterior};
+   }
+
+   if(anterior&&Array.isArray(anterior.productos)){
+    let datos=normalizarDB(anterior);
+    datos=limpiarDemoConRespaldo(datos,raw);
+
+    try{
+     localStorage.setItem(STORAGE_KEY,JSON.stringify(datos));
+    }catch(e){
+     console.warn("No se pudo guardar la migración.",e);
+    }
+
+    return datos;
+   }
+  }
+ }catch(e){
+  console.error("Error al cargar los datos:",e);
+  alert("No se pudieron leer correctamente los datos guardados. No se borraron las claves anteriores.");
+ }
+
+ return nuevoDB();
+}
+
+let db=cargarDB();
+
+/* GUARDADO */
+
+function guardar(){
+ try{
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(db));
+  renderTodo();
+  return true;
+ }catch(e){
+  console.error("Error al guardar:",e);
+  alert("No se pudieron guardar los cambios. Puede faltar espacio en el dispositivo. Exportá una copia de seguridad y revisá el almacenamiento.");
+  renderTodo();
+  return false;
+ }
+}
+
+/* NAVEGACIÓN */
+
+function mostrar(tab,btn){
+ document.querySelectorAll("section").forEach(s=>{
+  s.classList.toggle("active",s.id===tab);
+ });
+
+ document.querySelectorAll("nav button").forEach(b=>{
+  b.classList.toggle("active",b===btn);
+ });
+
+ renderTodo();
+}
+
+/* INVENTARIO Y LOTES */
+
+function stock(p){
+ return (p.lotes||[]).reduce((s,l)=>
+  s+Math.max(0,numero(l.cantidad)),0
+ );
+}
+
+function ordenarLotes(p){
+ p.lotes.sort((a,b)=>{
+  if(!a.vencimiento)return 1;
+  if(!b.vencimiento)return -1;
+  return a.vencimiento.localeCompare(b.vencimiento);
+ });
+}
+
+/* RECEPCIÓN DE MERCADERÍA */
+
+function registrarRecepcion(){
+ const nombre=$("rNombre").value.trim();
+ const cantidad=Number($("rCantidad").value);
+ const codigo=$("rCodigo").value.trim();
+ const fecha=$("rFecha").value||hoy();
+ const costo=Number($("rCosto").value);
+ const precio=Number($("rPrecio").value);
+
+ if(
+  !nombre||
+  !Number.isInteger(cantidad)||
+  cantidad<1||
+  !Number.isFinite(costo)||
+  !Number.isFinite(precio)||
+  costo<0||
+  precio<0
+ ){
+  alert("Completá el nombre, una cantidad entera y valores válidos.");
+  return;
+ }
+
+ let p=db.productos.find(x=>codigo&&x.codigo===codigo);
+
+ if(!p){
+  p={
+   id:uid(),
+   codigo,
+   nombre,
+   lotes:[]
+  };
+  db.productos.push(p);
+ }
+
+ p.nombre=nombre;
+ if(codigo)p.codigo=codigo;
+
+ const vencimiento=$("rVencimiento").value;
+
+ p.lotes.push({
+  id:uid(),
+  cantidad,
+  vencimiento,
+  costo,
+  precio,
+  fecha
+ });
+
+ db.recepciones.push({
+  id:uid(),
+  fecha,
+  proveedor:$("rProveedor").value.trim(),
+  factura:$("rFactura").value.trim(),
+  producto:nombre,
+  codigo,
+  cantidad,
+  vencimiento,
+  costo,
+  precio
+ });
+
+ if(!guardar())return;
+
+ [
+  "rProveedor","rFactura","rCodigo","rNombre",
+  "rCantidad","rVencimiento","rCosto","rPrecio"
+ ].forEach(k=>$(k).value="");
+
+ $("rFecha").value=hoy();
+
+ alert("Recepción registrada y stock actualizado.");
+}
+
+function renderRecepciones(){
+ $("historialRecepciones").innerHTML=
+ db.recepciones.slice().reverse().map(r=>
+ `<div class="item">
+ <b>${esc(r.producto)}</b>
+ <p>${esc(r.fecha)} · Proveedor: ${esc(r.proveedor||"-")} · Factura: ${esc(r.factura||"-")}</p>
+ <p>Cantidad: ${numero(r.cantidad)} · Vencimiento: ${esc(r.vencimiento||"No indicado")}</p>
+ <p>Costo unitario: ${money(r.costo)} · Precio: ${money(r.precio)}</p>
+ </div>`
+ ).join("")||'<p class="muted">Todavía no hay recepciones.</p>';
+}
+
+/* DEPÓSITO */
+
+function renderDeposito(){
+ const q=($("buscarDeposito").value||"").toLowerCase().trim();
+
+ const ps=db.productos.filter(p=>
+  p.nombre.toLowerCase().includes(q)||
+  p.codigo.toLowerCase().includes(q)
+ );
+
+ $("dProductos").textContent=db.productos.length;
+
+ $("dUnidades").textContent=db.productos.reduce(
+  (s,p)=>s+stock(p),0
+ );
+
+ $("listaDeposito").innerHTML=ps.map(p=>
+ `<div class="item">
+ <b>${esc(p.nombre)}</b>
+ <p>Código: ${esc(p.codigo||"-")} · Stock total: <b>${stock(p)}</b></p>
+
+ ${p.lotes.map(l=>
+  `<p>
+   Lote ${esc(l.id)} · Cantidad ${numero(l.cantidad)}
+   · Vence ${esc(l.vencimiento||"No indicado")}
+   · Costo ${money(l.costo)}
+   · Venta ${money(l.precio)}
+  </p>`
+ ).join("")}
+
+ <div class="actions">
+ <button class="btn secondary tiny" data-id="${esc(p.id)}" onclick="editarProducto(this.dataset.id)">Editar datos</button>
+ <button class="btn danger tiny" data-id="${esc(p.id)}" onclick="eliminarProducto(this.dataset.id)">Eliminar producto</button>
+ </div>
+ </div>`
+ ).join("")||'<p class="muted">No hay productos que coincidan.</p>';
+}
+
+function editarProducto(pid){
+ const p=db.productos.find(x=>x.id===pid);
+ if(!p)return;
+
+ const nombre=prompt("Nombre del producto:",p.nombre);
+ if(nombre===null)return;
+
+ const codigo=prompt("Código de barras:",p.codigo);
+ if(codigo===null)return;
+
+ if(!nombre.trim()){
+  alert("El nombre no puede quedar vacío.");
+  return;
+ }
+
+ p.nombre=nombre.trim();
+ p.codigo=codigo.trim();
+
+ guardar();
+}
+
+function eliminarProducto(pid){
+ const p=db.productos.find(x=>x.id===pid);
+ if(!p)return;
+
+ if(!confirm("¿Eliminar el producto y todos sus lotes? El historial de ventas y recepciones se conservará."))return;
+
+ db.productos=db.productos.filter(x=>x.id!==pid);
+ guardar();
+}
+
+/* SELECTOR DE PRODUCTOS PARA VENTAS */
+
+function poblarSelect(){
+ const sel=$("ventaProducto");
+ const previo=sel.value;
+
+ sel.innerHTML='<option value="">Seleccionar producto</option>'+
+ db.productos.filter(p=>stock(p)>0).map(p=>
+ `<option value="${esc(p.id)}">${esc(p.nombre)} — ${stock(p)} u.</option>`
+ ).join("");
+
+ if(db.productos.some(p=>p.id===previo&&stock(p)>0)){
+  sel.value=previo;
+ }
+}
+
+function precioSugerido(){
+ const p=db.productos.find(x=>x.id===$("ventaProducto").value);
+ if(!p)return;
+
+ ordenarLotes(p);
+
+ const l=p.lotes.find(x=>numero(x.cantidad)>0);
+
+ $("ventaPrecio").value=l?numero(l.precio):0;
+}
+
+/* BÚSQUEDA DE PRODUCTOS EN EL LOCAL */
+
+function buscarLocal(){
+ const q=$("buscarLocal").value.toLowerCase().trim();
+
+ if(!q){
+  $("resultadosLocal").innerHTML="";
+  return;
+ }
+
+ const arr=db.productos.filter(p=>
+  p.nombre.toLowerCase().includes(q)||
+  p.codigo.toLowerCase().includes(q)
+ );
+
+ $("resultadosLocal").innerHTML=arr.map(p=>
+ `<div class="item">
+ <b>${esc(p.nombre)}</b>
+ <p>Código ${esc(p.codigo||"-")} · Stock ${stock(p)}</p>
+ <button class="btn secondary tiny" data-id="${esc(p.id)}" onclick="seleccionarVenta(this.dataset.id)">Seleccionar</button>
+ </div>`
+ ).join("")||'<p class="muted">No se encontraron productos.</p>';
+}
+
+function seleccionarVenta(pid){
+ $("ventaProducto").value=pid;
+ precioSugerido();
+}
+
+/* REGISTRAR VENTA Y DESCONTAR STOCK */
+
+function registrarVenta(){
+ const p=db.productos.find(x=>x.id===$("ventaProducto").value);
+ const cantidad=Number($("ventaCantidad").value);
+ const desc=Number($("ventaDescuento").value);
+ const precio=Number($("ventaPrecio").value);
+
+ if(
+  !p||
+  !Number.isInteger(cantidad)||
+  cantidad<1||
+  !Number.isFinite(precio)||
+  precio<0||
+  !Number.isFinite(desc)||
+  desc<0||
+  desc>100
+ ){
+  alert("Revisá el producto, la cantidad, el precio y el descuento.");
+  return;
+ }
+
+ if(stock(p)<cantidad){
+  alert("Stock insuficiente.");
+  return;
+ }
+
+ ordenarLotes(p);
+
+ let restante=cantidad;
+ let costo=0;
+
+ for(const l of p.lotes){
+  const disponible=Math.max(0,numero(l.cantidad));
+  const usar=Math.min(disponible,restante);
+
+  costo+=usar*numero(l.costo);
+  l.cantidad=disponible-usar;
+  restante-=usar;
+
+  if(restante===0)break;
+ }
+
+ const bruto=cantidad*precio;
+ const total=bruto*(1-desc/100);
+ const fecha=new Date().toISOString();
+
+ db.ventas.push({
+  id:uid(),
+  fecha,
+  producto:p.nombre,
+  codigo:p.codigo,
+  cantidad,
+  precio,
+  descuento:desc,
+  total,
+  costo,
+  ganancia:total-costo
+ });
+
+ if(!guardar())return;
+
+ $("ventaCantidad").value=1;
+ $("ventaDescuento").value=0;
+ $("buscarLocal").value="";
+ $("resultadosLocal").innerHTML="";
+
+ alert("Venta registrada. Se descontó el stock.");
+}
+</script>
+
+
+<script>
+/* ALERTAS DE STOCK Y VENCIMIENTOS */
+
+function renderAlertas(){
+ const hoyDate=new Date(hoy()+"T00:00:00");
+ const limite=new Date(hoyDate);
+
+ limite.setDate(limite.getDate()+30);
+
+ let out=[];
+
+ db.productos.forEach(p=>{
+  if(stock(p)<=5&&stock(p)>0){
+   out.push(
+    `<div class="item redtext">
+     🔴 ${esc(p.nombre)} — stock bajo: ${stock(p)}
+    </div>`
+   );
+  }
+
+  if(stock(p)===0){
+   out.push(
+    `<div class="item redtext">
+     🔴 ${esc(p.nombre)} — sin existencias
+    </div>`
+   );
+  }
+
+  p.lotes.forEach(l=>{
+   if(!l.vencimiento||numero(l.cantidad)<=0)return;
+
+   const d=new Date(l.vencimiento+"T00:00:00");
+
+   if(Number.isNaN(d.getTime()))return;
+
+   if(d<hoyDate){
+    out.push(
+     `<div class="item redtext">
+      🔴 ${esc(p.nombre)} — lote vencido: ${esc(l.vencimiento)}
+      (${numero(l.cantidad)} u.)
+     </div>`
+    );
+   }else if(d<=limite){
+    out.push(
+     `<div class="item orangetext">
+      🟠 ${esc(p.nombre)} — próximo a vencer: ${esc(l.vencimiento)}
+      (${numero(l.cantidad)} u.)
+     </div>`
+    );
+   }
+  });
+ });
+
+ $("alertas").innerHTML=out.join("")||
+ '<p class="green">No hay alertas de stock o vencimiento.</p>';
+}
+
+/* FACTURACIÓN Y FILTROS */
+
+function ventasFiltradas(){
+ const modo=$("fPeriodo").value;
+ const ahora=new Date();
+ const hoyClave=fechaLocal(ahora);
+
+ return db.ventas.filter(v=>{
+  const d=new Date(v.fecha);
+
+  if(Number.isNaN(d.getTime()))return false;
+
+  if(modo==="todo")return true;
+
+  if(modo==="dia"){
+   return fechaLocal(d)===hoyClave;
+  }
+
+  if(modo==="semana"){
+   const inicio=new Date(ahora);
+   inicio.setHours(0,0,0,0);
+   inicio.setDate(inicio.getDate()-6);
+
+   return d>=inicio&&d<=ahora;
+  }
+
+  if(modo==="mes"){
+   return d.getMonth()===ahora.getMonth()&&
+          d.getFullYear()===ahora.getFullYear();
+  }
+
+  return true;
+ });
+}
+
+function renderFacturacion(){
+ const ventas=ventasFiltradas();
+
+ const sum=k=>ventas.reduce(
+  (s,v)=>s+numero(v[k]),0
+ );
+
+ $("fVentas").textContent=money(sum("total"));
+ $("fCostos").textContent=money(sum("costo"));
+ $("fGanancia").textContent=money(sum("ganancia"));
+ $("fOperaciones").textContent=ventas.length;
+
+ $("resumenPeriodo").innerHTML=
+ `<div class="item">
+  <p>Operaciones: <b>${ventas.length}</b></p>
+  <p>Ventas: <b>${money(sum("total"))}</b></p>
+  <p>Costos: <b>${money(sum("costo"))}</b></p>
+  <p>Ganancia bruta: <b class="green">${money(sum("ganancia"))}</b></p>
+ </div>`;
+
+ $("historialVentas").innerHTML=
+ db.ventas.slice().reverse().map(v=>
+ `<div class="item">
+  <b>${esc(v.producto)}</b>
+  <p>${new Date(v.fecha).toLocaleString("es-AR")} · Cantidad ${numero(v.cantidad)}</p>
+  <p>Precio unitario: ${money(v.precio)} · Descuento: ${numero(v.descuento)}%</p>
+  <p>Venta ${money(v.total)} · Costo ${money(v.costo)} · Ganancia ${money(v.ganancia)}</p>
+ </div>`
+ ).join("")||'<p class="muted">Todavía no hay ventas.</p>';
+
+ dibujarGrafico();
+}
+
+/* GRÁFICO DE VENTAS */
+
+function dibujarGrafico(){
+ const c=$("grafico");
+ if(!c)return;
+
+ const ctx=c.getContext("2d");
+ if(!ctx)return;
+
+ const w=c.width;
+ const h=c.height;
+
+ ctx.clearRect(0,0,w,h);
+
+ const dias=[];
+
+ for(let i=6;i>=0;i--){
+  const d=new Date();
+  d.setDate(d.getDate()-i);
+  dias.push(d);
+ }
+
+ const vals=dias.map(d=>
+  db.ventas.filter(v=>{
+   const fecha=new Date(v.fecha);
+   return !Number.isNaN(fecha.getTime())&&
+          fechaLocal(fecha)===fechaLocal(d);
+  }).reduce((s,v)=>s+numero(v.total),0)
+ );
+
+ const max=Math.max(1,...vals);
+ const left=65;
+ const bottom=h-35;
+ const top=20;
+ const usableH=bottom-top;
+ const barW=48;
+ const gap=(w-left-20)/7;
+
+ ctx.font="12px Arial";
+ ctx.strokeStyle="#cbd5e1";
+ ctx.fillStyle="#475569";
+
+ ctx.beginPath();
+ ctx.moveTo(left,top);
+ ctx.lineTo(left,bottom);
+ ctx.lineTo(w-10,bottom);
+ ctx.stroke();
+
+ for(let i=0;i<5;i++){
+  const y=bottom-usableH*i/4;
+
+  ctx.fillStyle="#64748b";
+  ctx.fillText(
+   Math.round(max*i/4).toString(),
+   5,
+   y+4
+  );
+
+  ctx.strokeStyle="#e2e8f0";
+  ctx.beginPath();
+  ctx.moveTo(left,y);
+  ctx.lineTo(w-10,y);
+  ctx.stroke();
+ }
+
+ vals.forEach((v,i)=>{
+  const bh=v/max*(usableH-5);
+  const x=left+i*gap+8;
+  const y=bottom-bh;
+
+  ctx.fillStyle="#2563eb";
+  ctx.fillRect(x,y,barW,bh);
+
+  ctx.fillStyle="#334155";
+  ctx.fillText(
+   dias[i].toLocaleDateString("es-AR",{weekday:"short"}),
+   x,
+   bottom+18
+  );
+
+  if(v>0){
+   ctx.fillText(
+    v>=1000?(v/1000).toFixed(1)+"k":String(Math.round(v)),
+    x,
+    Math.max(12,y-5)
+   );
+  }
+ });
+}
+
+/* EMPLEADOS */
+
+function agregarEmpleado(){
+ const nombre=$("eNombre").value.trim();
+
+ if(!nombre){
+  alert("Ingresá el nombre del empleado.");
+  return;
+ }
+
+ db.empleados.push({
+  id:uid(),
+  nombre,
+  puesto:$("ePuesto").value.trim(),
+  capacidades:$("eCapacidades").value.trim(),
+  rendimiento:$("eRendimiento").value,
+  obs:$("eObs").value.trim()
+ });
+
+ if(!guardar())return;
+
+ ["eNombre","ePuesto","eCapacidades","eObs"].forEach(k=>{
+  $(k).value="";
+ });
+
+ alert("Empleado guardado correctamente.");
+}
+
+/* CLIENTES */
+
+function agregarCliente(){
+ const nombre=$("cNombre").value.trim();
+
+ if(!nombre){
+  alert("Ingresá el nombre del cliente.");
+  return;
+ }
+
+ const correo=$("cCorreo").value.trim();
+
+ if(correo&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)){
+  alert("Ingresá un correo electrónico válido.");
+  return;
+ }
+
+ db.clientes.push({
+  id:uid(),
+  nombre,
+  telefono:$("cTelefono").value.trim(),
+  correo,
+  obs:$("cObs").value.trim()
+ });
+
+ if(!guardar())return;
+
+ ["cNombre","cTelefono","cCorreo","cObs"].forEach(k=>{
+  $(k).value="";
+ });
+
+ alert("Cliente guardado correctamente.");
+}
+
+/* VISUALIZACIÓN DE PERSONAL Y CLIENTES */
+
+function renderBase(){
+ $("listaEmpleados").innerHTML=
+ db.empleados.map(e=>
+ `<div class="item">
+  <b>${esc(e.nombre)}</b>
+  <p>${esc(e.puesto)} · Rendimiento: ${esc(e.rendimiento)}</p>
+  <p>${esc(e.capacidades)} ${esc(e.obs)}</p>
+  <button class="btn danger tiny" data-id="${esc(e.id)}" onclick="borrarRegistro('empleados',this.dataset.id)">Eliminar</button>
+ </div>`
+ ).join("")||'<p class="muted">Sin empleados cargados.</p>';
+
+ $("listaClientes").innerHTML=
+ db.clientes.map(c=>
+ `<div class="item">
+  <b>${esc(c.nombre)}</b>
+  <p>${esc(c.telefono)} · ${esc(c.correo)}</p>
+  <p>${esc(c.obs)}</p>
+  <button class="btn danger tiny" data-id="${esc(c.id)}" onclick="borrarRegistro('clientes',this.dataset.id)">Eliminar</button>
+ </div>`
+ ).join("")||'<p class="muted">Sin clientes cargados.</p>';
+}
+
+function borrarRegistro(tipo,id){
+ if(!["empleados","clientes"].includes(tipo))return;
+
+ if(!confirm("¿Eliminar este registro?"))return;
+
+ db[tipo]=db[tipo].filter(x=>x.id!==id);
+
+ guardar();
+}
+
+/* COPIAS DE SEGURIDAD */
+
+function exportarBackup(){
+ try{
+  const copia={
+   aplicacion:"Mi Comercio Integral",
+   version:4,
+   fechaExportacion:new Date().toISOString(),
+   datos:db
+  };
+
+  const blob=new Blob(
+   [JSON.stringify(copia,null,2)],
+   {type:"application/json"}
+  );
+
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+
+  a.href=url;
+  a.download="mi-comercio-respaldo-"+hoy()+".json";
+
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+
+ }catch(e){
+  console.error(e);
+  alert("No se pudo generar la copia de seguridad.");
+ }
+}
+
+function importarBackup(){
+ const file=$("archivoBackup").files[0];
+
+ if(!file){
+  alert("Elegí un archivo JSON.");
+  return;
+ }
+
+ const reader=new FileReader();
+
+ reader.onload=()=>{
+  try{
+   const archivo=JSON.parse(reader.result);
+
+   const datos=archivo.datos||archivo;
+
+   if(
+    !datos||
+    typeof datos!=="object"||
+    !Array.isArray(datos.productos)
+   ){
+    throw new Error("Estructura inválida");
+   }
+
+   if(!confirm(
+    "La restauración reemplazará los datos actuales. ¿Ya descargaste una copia de seguridad y querés continuar?"
+   ))return;
+
+   const anterior=db;
+   db=normalizarDB(datos);
+
+   if(!guardar()){
+    db=anterior;
+    renderTodo();
+    return;
+   }
+
+   $("archivoBackup").value="";
+   alert("Copia de seguridad restaurada correctamente.");
+
+  }catch(e){
+   console.error(e);
+   alert("El archivo no es una copia válida de Mi Comercio Integral.");
+  }
+ };
+
+ reader.onerror=()=>{
+  alert("No se pudo leer el archivo seleccionado.");
+ };
+
+ reader.readAsText(file);
+}
+
+/* LECTOR DE CÓDIGOS DE BARRAS */
+
+let scannerStream=null;
+let scannerTimer=null;
+let scannerTarget=null;
+let detector=null;
+let scannerActivo=false;
+
+async function abrirScanner(target){
+ cerrarStream();
+
+ scannerTarget=target;
+ $("scannerPanel").classList.remove("hidden");
+ $("scannerEstado").textContent="Preparando cámara...";
+
+ if(!navigator.mediaDevices||
+    !navigator.mediaDevices.getUserMedia){
+  $("scannerEstado").textContent=
+   "El navegador no permite acceder a la cámara. Usá un lector Bluetooth o ingresá el código manualmente.";
+  return;
+ }
+
+ if(!("BarcodeDetector" in window)){
+  $("scannerEstado").textContent=
+   "Este navegador no admite lectura automática integrada. Podés utilizar un lector Bluetooth o ingresar el código manualmente.";
+  return;
+ }
+
+ try{
+  let formatos=[
+   "ean_13","ean_8","upc_a","upc_e",
+   "code_128","code_39","qr_code"
+  ];
+
+  if(typeof BarcodeDetector.getSupportedFormats==="function"){
+   const soportados=await BarcodeDetector.getSupportedFormats();
+   formatos=formatos.filter(f=>soportados.includes(f));
+  }
+
+  detector=formatos.length?
+   new BarcodeDetector({formats:formatos}):
+   new BarcodeDetector();
+
+  scannerStream=await navigator.mediaDevices.getUserMedia({
+   video:{
+    facingMode:{ideal:"environment"},
+    width:{ideal:1280},
+    height:{ideal:720}
+   },
+   audio:false
+  });
+
+  const video=$("scannerVideo");
+  video.srcObject=scannerStream;
+
+  await video.play();
+
+  scannerActivo=true;
+
+  $("scannerEstado").textContent=
+   "Apuntá la cámara al código de barras.";
+
+  scanLoop();
+
+ }catch(e){
+  console.error("Error de cámara:",e);
+
+  scannerActivo=false;
+  cerrarStream();
+
+  $("scannerEstado").textContent=
+   "No se pudo abrir la cámara. Revisá los permisos de Safari y que la página esté en HTTPS.";
+ }
+}
+
+async function scanLoop(){
+ if(!scannerActivo||!scannerStream||!detector)return;
+
+ try{
+  const video=$("scannerVideo");
+
+  if(video.readyState>=2){
+   const codes=await detector.detect(video);
+
+   if(codes.length&&codes[0].rawValue){
+    const valor=codes[0].rawValue;
+
+    $(scannerTarget).value=valor;
+
+    const destino=scannerTarget;
+
+    cerrarScanner();
+
+    if(destino==="buscarLocal"){
+     buscarLocal();
+    }
+
+    return;
+   }
+  }
+
+ }catch(e){
+  console.warn("Lectura de código:",e);
+ }
+
+ if(scannerActivo){
+  scannerTimer=setTimeout(scanLoop,300);
+ }
+}
+
+function cerrarStream(){
+ scannerActivo=false;
+
+ if(scannerTimer){
+  clearTimeout(scannerTimer);
+  scannerTimer=null;
+ }
+
+ if(scannerStream){
+  scannerStream.getTracks().forEach(t=>t.stop());
+  scannerStream=null;
+ }
+}
+
+function cerrarScanner(){
+ cerrarStream();
+
+ const video=$("scannerVideo");
+
+ if(video){
+  video.pause();
+  video.srcObject=null;
+ }
+
+ $("scannerPanel").classList.add("hidden");
+}
+
+/* ACTUALIZACIÓN DE LOS MÓDULOS */
+
+function renderLocal(){
+ poblarSelect();
+
+ $("listaLocal").innerHTML=
+ db.productos.map(p=>
+ `<div class="item">
+  <b>${esc(p.nombre)}</b>
+  <p>Código: ${esc(p.codigo||"-")} · Stock: ${stock(p)}</p>
+ </div>`
+ ).join("")||'<p class="muted">No hay productos cargados.</p>';
+
+ renderAlertas();
+}
+
+function renderTodo(){
+ renderRecepciones();
+ renderDeposito();
+ renderLocal();
+ renderFacturacion();
+ renderBase();
+}
+
+/* INICIALIZACIÓN */
+
+$("rFecha").value=hoy();
+
+renderTodo();
+
+window.addEventListener("pagehide",cerrarStream);
+
+if("serviceWorker" in navigator){
+ window.addEventListener("load",()=>{
+  navigator.serviceWorker.register("./sw.js")
+   .then(reg=>{
+    console.log("Mi Comercio: servicio offline activado.");
+
+    reg.update().catch(()=>{});
+   })
+   .catch(error=>{
+    console.error("Error al activar modo offline:",error);
+   });
+ });
+}
+
+</script>
+
+</body>
+</html>
