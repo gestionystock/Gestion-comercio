@@ -1,5 +1,7 @@
 
-const CACHE_NAME = "mi-comercio-v2";
+"use strict";
+
+const CACHE_NAME = "mi-comercio-v4";
 const CACHE_PREFIX = "mi-comercio-";
 
 const ARCHIVOS = [
@@ -12,80 +14,108 @@ const ARCHIVOS = [
 
 self.addEventListener("install", event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache =>
-      cache.addAll(ARCHIVOS)
-    )
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(ARCHIVOS))
+      .then(() => self.skipWaiting())
   );
-
-  self.skipWaiting();
 });
 
 self.addEventListener("activate", event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(key =>
-            key.startsWith(CACHE_PREFIX) &&
-            key !== CACHE_NAME
-          )
-          .map(key => caches.delete(key))
+    caches.keys()
+      .then(keys =>
+        Promise.all(
+          keys
+            .filter(key =>
+              key.startsWith(CACHE_PREFIX) &&
+              key !== CACHE_NAME
+            )
+            .map(key => caches.delete(key))
+        )
       )
-    ).then(() => self.clients.claim())
+      .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener("fetch", event => {
-  if (event.request.method !== "GET") return;
+  const request = event.request;
 
-  const url = new URL(event.request.url);
+  if (request.method !== "GET") return;
+
+  const url = new URL(request.url);
 
   if (url.origin !== self.location.origin) return;
 
-  if (event.request.mode === "navigate") {
+  const indexURL = new URL(
+    "./index.html",
+    self.registration.scope
+  ).href;
+
+  /* NAVEGACIÓN: PRIMERO INTERNET, LUEGO CACHÉ */
+
+  if (request.mode === "navigate") {
     event.respondWith(
-      fetch(event.request)
+      fetch(request)
         .then(response => {
           if (response.ok) {
             const copia = response.clone();
 
-            caches.open(CACHE_NAME).then(cache =>
-              cache.put("./index.html", copia)
-            );
+            caches.open(CACHE_NAME)
+              .then(cache => cache.put(indexURL, copia))
+              .catch(error => console.warn(
+                "No se pudo actualizar la caché:",
+                error
+              ));
           }
 
           return response;
         })
         .catch(async () => {
-          return (
-            await caches.match("./index.html")
-          ) || new Response("Sin conexión", {
-            status: 503,
-            headers: {
-              "Content-Type": "text/plain; charset=utf-8"
+          const guardado = await caches.match(indexURL);
+
+          return guardado || new Response(
+            "Mi Comercio Integral no está disponible sin conexión. Abrí la aplicación nuevamente cuando haya conexión.",
+            {
+              status: 503,
+              headers: {
+                "Content-Type": "text/plain; charset=utf-8"
+              }
             }
-          });
+          );
         })
     );
 
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
+  /* RECURSOS: CACHÉ PRIMERO, RED COMO ALTERNATIVA */
 
-      return fetch(event.request).then(response => {
+  event.respondWith(
+    (async () => {
+      const guardado = await caches.match(request);
+
+      if (guardado) return guardado;
+
+      try {
+        const response = await fetch(request);
+
         if (response.ok) {
           const copia = response.clone();
 
-          caches.open(CACHE_NAME).then(cache =>
-            cache.put(event.request, copia)
-          );
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put(request, copia);
         }
 
         return response;
-      });
-    })
+
+      } catch (error) {
+        return new Response("Recurso no disponible sin conexión.", {
+          status: 503,
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8"
+          }
+        });
+      }
+    })()
   );
 });
