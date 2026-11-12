@@ -163,6 +163,24 @@ canvas{width:100%;max-height:260px}
  margin:8px 0;
 }
 .notice.warning{background:#fff7ed;color:#9a3412}
+.panel-alerta{
+ border-left:4px solid var(--orange);
+ background:#fff7ed;
+ padding:11px;
+ border-radius:8px;
+ margin:8px 0;
+ font-size:13px;
+}
+.panel-alerta.critica{
+ border-left-color:var(--red);
+ background:#fee2e2;
+}
+.panel-alerta.ok{
+ border-left-color:var(--green);
+ background:#f0fdf4;
+}
+.panel-positivo{color:var(--green);font-weight:bold}
+.panel-negativo{color:var(--red);font-weight:bold}
 footer{
  text-align:center;
  color:#64748b;
@@ -171,7 +189,7 @@ footer{
 }
 @media(min-width:650px){
  body{max-width:900px;margin:auto}
- nav{grid-template-columns:repeat(5,1fr)}
+ nav{grid-template-columns:repeat(3,1fr)}
 }
 @media(max-width:380px){
  body{padding:8px}
@@ -194,6 +212,7 @@ footer{
 <button data-tab="deposito" onclick="mostrar('deposito',this)">🏬 Depósito</button>
 <button data-tab="local" onclick="mostrar('local',this)">🛒 Local</button>
 <button data-tab="facturacion" onclick="mostrar('facturacion',this)">📊 Facturación</button>
+<button data-tab="panel" onclick="mostrar('panel',this)">🧠 Panel inteligente</button>
 <button data-tab="base" onclick="mostrar('base',this)">👥 Base de datos</button>
 </nav>
 
@@ -356,6 +375,86 @@ footer{
 </div>
 </section>
 
+<section id="panel">
+<h2>🧠 Panel de control inteligente</h2>
+
+<div class="card">
+<h3>Indicadores comerciales</h3>
+<label>Período de análisis</label>
+<select id="panelPeriodo" onchange="renderPanel()">
+<option value="dia">Hoy</option>
+<option value="semana">Últimos 7 días</option>
+<option value="mes">Este mes</option>
+<option value="todo" selected>Histórico completo</option>
+</select>
+
+<div class="grid">
+<div class="stat">Facturación<strong id="pFacturacion">$0</strong></div>
+<div class="stat">Ganancia bruta<strong id="pGanancia">$0</strong></div>
+<div class="stat">Margen real<strong id="pMargen">0%</strong></div>
+<div class="stat">Unidades vendidas<strong id="pUnidades">0</strong></div>
+<div class="stat">Operaciones<strong id="pOperaciones">0</strong></div>
+<div class="stat">Productos activos<strong id="pProductos">0</strong></div>
+</div>
+</div>
+
+<div class="card">
+<h3>⚙️ Configuración inteligente</h3>
+
+<div class="row">
+<div>
+<label>Stock mínimo de alerta</label>
+<input id="pStockMinimo" type="number" min="0" step="1">
+</div>
+<div>
+<label>Stock objetivo</label>
+<input id="pStockObjetivo" type="number" min="1" step="1">
+</div>
+</div>
+
+<label>Margen de ganancia objetivo (%)</label>
+<input id="pMargenObjetivo" type="number" min="0" max="99" step="0.1">
+
+<button class="btn primary" onclick="guardarConfigPanel()">Guardar configuración</button>
+<p class="muted">Estos valores determinan las alertas y las recomendaciones de reposición y precios.</p>
+</div>
+
+<div class="card">
+<h3>🚨 Alertas y recomendaciones</h3>
+<div id="panelAlertas"></div>
+</div>
+
+<div class="card">
+<h3>💰 Rentabilidad por producto</h3>
+<p class="muted">Ganancia calculada con los costos históricos registrados en cada venta.</p>
+<div class="tablewrap">
+<table>
+<thead>
+<tr>
+<th>Producto</th>
+<th>Unidades</th>
+<th>Ventas</th>
+<th>Ganancia</th>
+<th>Margen</th>
+</tr>
+</thead>
+<tbody id="tablaRentabilidad"></tbody>
+</table>
+</div>
+</div>
+
+<div class="card">
+<h3>🏆 Rendimiento comercial</h3>
+<div id="rankingProductos"></div>
+</div>
+
+<div class="card">
+<h3>🏷️ Control de márgenes actuales</h3>
+<p class="muted">Se analiza el costo y precio de los lotes que todavía tienen existencias.</p>
+<div id="controlMargenes"></div>
+</div>
+</section>
+
 <section id="base">
 <h2>👥 Personal y clientes</h2>
 
@@ -442,7 +541,6 @@ La restauración reemplaza los datos actuales. Descargá primero una copia de se
 
 <footer>Mi Comercio Integral · Datos guardados en este dispositivo</footer>
 
-
 <script>
 "use strict";
 
@@ -511,7 +609,12 @@ function nuevoDB(){
   recepciones:[],
   ventas:[],
   empleados:[],
-  clientes:[]
+  clientes:[],
+  config:{
+   stockMinimo:5,
+   stockObjetivo:15,
+   margenObjetivo:30
+  }
  };
 }
 
@@ -551,6 +654,9 @@ function normalizarDB(datos){
 
  if(!datos||typeof datos!=="object")return base;
 
+ const config=datos.config&&typeof datos.config==="object"?
+  datos.config:{};
+
  return {
   ...base,
   version:4,
@@ -563,11 +669,16 @@ function normalizarDB(datos){
   empleados:Array.isArray(datos.empleados)?
    datos.empleados.filter(x=>x&&typeof x==="object"):[],
   clientes:Array.isArray(datos.clientes)?
-   datos.clientes.filter(x=>x&&typeof x==="object"):[]
+   datos.clientes.filter(x=>x&&typeof x==="object"):[],
+  config:{
+   stockMinimo:Math.max(0,numero(config.stockMinimo,5)),
+   stockObjetivo:Math.max(1,numero(config.stockObjetivo,15)),
+   margenObjetivo:Math.min(99,Math.max(0,numero(config.margenObjetivo,30)))
+  }
  };
 }
 
-/* DETECCIÓN SEGURA DE PRODUCTOS DE DEMOSTRACIÓN */
+/* DETECCIÓN DE PRODUCTOS DE DEMOSTRACIÓN */
 
 const PRODUCTOS_DEMO=[
  {codigo:"7790001000011",nombre:"leche entera",cantidad:12,costo:900,precio:1300},
@@ -599,11 +710,8 @@ function limpiarDemoConRespaldo(datos,raw){
 
  try{
   localStorage.setItem(BACKUP_LIMPIEZA_KEY,raw);
-
   datos.productos=datos.productos.filter(p=>!esDemoOriginal(p));
-
   console.info("Productos de demostración retirados. Respaldo local conservado.");
-
  }catch(e){
   console.warn("No se pudo guardar el respaldo previo. Se conservaron los productos.",e);
  }
@@ -910,7 +1018,9 @@ function seleccionarVenta(pid){
  $("ventaProducto").value=pid;
  precioSugerido();
 }
+</script>
 
+<script>
 /* REGISTRAR VENTA Y DESCONTAR STOCK */
 
 function registrarVenta(){
@@ -961,6 +1071,7 @@ function registrarVenta(){
  db.ventas.push({
   id:uid(),
   fecha,
+  productoId:p.id,
   producto:p.nombre,
   codigo:p.codigo,
   cantidad,
@@ -980,10 +1091,7 @@ function registrarVenta(){
 
  alert("Venta registrada. Se descontó el stock.");
 }
-</script>
 
-
-<script>
 /* ALERTAS DE STOCK Y VENCIMIENTOS */
 
 function renderAlertas(){
@@ -1381,6 +1489,305 @@ function importarBackup(){
  reader.readAsText(file);
 }
 
+/* PANEL DE CONTROL INTELIGENTE */
+
+function ventasPanelFiltradas(){
+ const modo=$("panelPeriodo").value;
+ const ahora=new Date();
+
+ return db.ventas.filter(v=>{
+  const d=new Date(v.fecha);
+  if(Number.isNaN(d.getTime()))return false;
+
+  if(modo==="todo")return true;
+
+  if(modo==="dia"){
+   return fechaLocal(d)===hoy();
+  }
+
+  if(modo==="semana"){
+   const inicio=new Date(ahora);
+   inicio.setHours(0,0,0,0);
+   inicio.setDate(inicio.getDate()-6);
+   return d>=inicio&&d<=ahora;
+  }
+
+  if(modo==="mes"){
+   return d.getMonth()===ahora.getMonth()&&
+    d.getFullYear()===ahora.getFullYear();
+  }
+
+  return true;
+ });
+}
+
+function guardarConfigPanel(){
+ const minimo=Number($("pStockMinimo").value);
+ const objetivo=Number($("pStockObjetivo").value);
+ const margen=Number($("pMargenObjetivo").value);
+
+ if(
+  !Number.isInteger(minimo)||minimo<0||
+  !Number.isInteger(objetivo)||objetivo<1||
+  objetivo<=minimo||
+  !Number.isFinite(margen)||margen<0||margen>99
+ ){
+  alert("Revisá los valores. El stock objetivo debe ser mayor que el mínimo y el margen debe estar entre 0 y 99%.");
+  return;
+ }
+
+ db.config={
+  stockMinimo:minimo,
+  stockObjetivo:objetivo,
+  margenObjetivo:margen
+ };
+
+ if(guardar()){
+  alert("Configuración inteligente guardada.");
+ }
+}
+
+function datosRentabilidad(){
+ const ventas=ventasPanelFiltradas();
+ const mapa=new Map();
+
+ ventas.forEach(v=>{
+  const clave=String(
+   v.productoId||v.codigo||
+   (v.producto||"").trim().toLowerCase()
+  );
+
+  if(!clave)return;
+
+  if(!mapa.has(clave)){
+   mapa.set(clave,{
+    nombre:v.producto||"Producto",
+    unidades:0,
+    ventas:0,
+    costo:0,
+    ganancia:0,
+    operaciones:0
+   });
+  }
+
+  const p=mapa.get(clave);
+
+  p.unidades+=numero(v.cantidad);
+  p.ventas+=numero(v.total);
+  p.costo+=numero(v.costo);
+  p.ganancia+=numero(v.ganancia);
+  p.operaciones++;
+ });
+
+ return [...mapa.values()].map(p=>({
+  ...p,
+  margen:p.ventas>0?p.ganancia/p.ventas*100:0
+ }));
+}
+
+function costoPrecioActual(p){
+ let unidades=0;
+ let costo=0;
+ let precio=0;
+
+ (p.lotes||[]).forEach(l=>{
+  const cantidad=Math.max(0,numero(l.cantidad));
+  unidades+=cantidad;
+  costo+=cantidad*numero(l.costo);
+  precio+=cantidad*numero(l.precio);
+ });
+
+ return {
+  unidades,
+  costo:unidades?costo/unidades:0,
+  precio:unidades?precio/unidades:0
+ };
+}
+
+function renderPanel(){
+ if(!$("panelPeriodo"))return;
+
+ const ventas=ventasPanelFiltradas();
+
+ const facturacion=ventas.reduce((s,v)=>s+numero(v.total),0);
+ const ganancia=ventas.reduce((s,v)=>s+numero(v.ganancia),0);
+ const unidades=ventas.reduce((s,v)=>s+numero(v.cantidad),0);
+ const margen=facturacion>0?ganancia/facturacion*100:0;
+
+ $("pFacturacion").textContent=money(facturacion);
+ $("pGanancia").textContent=money(ganancia);
+ $("pMargen").textContent=margen.toFixed(1)+"%";
+ $("pUnidades").textContent=unidades;
+ $("pOperaciones").textContent=ventas.length;
+ $("pProductos").textContent=db.productos.filter(p=>stock(p)>0).length;
+
+ $("pStockMinimo").value=db.config.stockMinimo;
+ $("pStockObjetivo").value=db.config.stockObjetivo;
+ $("pMargenObjetivo").value=db.config.margenObjetivo;
+
+ renderAlertasPanel();
+ renderTablaRentabilidad();
+ renderRankingPanel();
+ renderControlMargenes();
+}
+
+function renderAlertasPanel(){
+ const minimo=db.config.stockMinimo;
+ const objetivo=db.config.stockObjetivo;
+ const margenObjetivo=db.config.margenObjetivo;
+ const alertas=[];
+
+ db.productos.forEach(p=>{
+  const cantidad=stock(p);
+
+  if(cantidad===0){
+   alertas.push(
+    `<div class="panel-alerta critica">
+     🔴 <b>${esc(p.nombre)}</b>: sin existencias.
+     Reposición sugerida: ${objetivo} unidades.
+    </div>`
+   );
+  }else if(cantidad<=minimo){
+   alertas.push(
+    `<div class="panel-alerta critica">
+     🔴 <b>${esc(p.nombre)}</b>: quedan ${cantidad} unidades.
+     Reposición sugerida: ${Math.max(0,objetivo-cantidad)} unidades.
+    </div>`
+   );
+  }
+
+  const actual=costoPrecioActual(p);
+
+  if(actual.unidades>0&&actual.precio>0){
+   const margen=(actual.precio-actual.costo)/actual.precio*100;
+
+   if(margen<margenObjetivo){
+    alertas.push(
+     `<div class="panel-alerta">
+      🟠 <b>${esc(p.nombre)}</b>: margen actual ${margen.toFixed(1)}%.
+      Objetivo: ${margenObjetivo.toFixed(1)}%.
+     </div>`
+    );
+   }
+  }
+
+  (p.lotes||[]).forEach(l=>{
+   if(!l.vencimiento||numero(l.cantidad)<=0)return;
+
+   const vencimiento=new Date(l.vencimiento+"T00:00:00");
+   const hoyDate=new Date(hoy()+"T00:00:00");
+   const dias=Math.ceil((vencimiento-hoyDate)/86400000);
+
+   if(dias<0){
+    alertas.push(
+     `<div class="panel-alerta critica">
+      ⚠️ ${esc(p.nombre)}: lote vencido (${esc(l.vencimiento)}).
+      ${numero(l.cantidad)} unidades.
+     </div>`
+    );
+   }else if(dias<=30){
+    alertas.push(
+     `<div class="panel-alerta">
+      🟠 ${esc(p.nombre)}: vence en ${dias} días.
+      ${numero(l.cantidad)} unidades.
+     </div>`
+    );
+   }
+  });
+ });
+
+ $("panelAlertas").innerHTML=alertas.join("")||
+ '<div class="panel-alerta ok">✅ No hay alertas comerciales en este momento.</div>';
+}
+
+function renderTablaRentabilidad(){
+ const datos=datosRentabilidad().sort((a,b)=>b.ganancia-a.ganancia);
+
+ $("tablaRentabilidad").innerHTML=datos.map(p=>
+ `<tr>
+  <td>${esc(p.nombre)}</td>
+  <td>${p.unidades}</td>
+  <td>${money(p.ventas)}</td>
+  <td class="${p.ganancia>=0?"panel-positivo":"panel-negativo"}">${money(p.ganancia)}</td>
+  <td>${p.margen.toFixed(1)}%</td>
+ </tr>`
+ ).join("")||
+ '<tr><td colspan="5">Todavía no hay ventas para analizar.</td></tr>';
+}
+
+function renderRankingPanel(){
+ const datos=datosRentabilidad();
+
+ const masVendido=datos.slice().sort(
+  (a,b)=>b.unidades-a.unidades
+ )[0];
+
+ const masRentable=datos.slice().sort(
+  (a,b)=>b.ganancia-a.ganancia
+ )[0];
+
+ const menorRentabilidad=datos
+  .filter(p=>p.ventas>0)
+  .slice().sort((a,b)=>a.margen-b.margen)[0];
+
+ $("rankingProductos").innerHTML=`
+ <div class="item">
+  🥇 <b>Más vendido:</b>
+  ${masVendido?
+   `${esc(masVendido.nombre)} (${masVendido.unidades} unidades)`:
+   "Sin datos"}
+ </div>
+ <div class="item">
+  💰 <b>Mayor ganancia:</b>
+  ${masRentable?
+   `${esc(masRentable.nombre)} (${money(masRentable.ganancia)})`:
+   "Sin datos"}
+ </div>
+ <div class="item">
+  ⚠️ <b>Menor margen histórico:</b>
+  ${menorRentabilidad?
+   `${esc(menorRentabilidad.nombre)} (${menorRentabilidad.margen.toFixed(1)}%)`:
+   "Sin datos"}
+ </div>`;
+}
+
+function renderControlMargenes(){
+ const objetivo=db.config.margenObjetivo;
+
+ $("controlMargenes").innerHTML=db.productos.map(p=>{
+  const actual=costoPrecioActual(p);
+
+  if(!actual.unidades){
+   return `<div class="item">
+    <b>${esc(p.nombre)}</b>
+    <p>Sin stock disponible para analizar el precio actual.</p>
+   </div>`;
+  }
+
+  const margen=actual.precio>0?
+   (actual.precio-actual.costo)/actual.precio*100:0;
+
+  const precioSugerido=actual.costo/(1-objetivo/100);
+  const correcto=margen>=objetivo;
+
+  return `<div class="item">
+   <b>${esc(p.nombre)}</b>
+   <p>Costo promedio actual: ${money(actual.costo)}</p>
+   <p>Precio promedio actual: ${money(actual.precio)}</p>
+   <p>Margen actual:
+    <b class="${correcto?"panel-positivo":"panel-negativo"}">
+     ${margen.toFixed(1)}%
+    </b>
+   </p>
+   <p>Margen objetivo: ${objetivo.toFixed(1)}%</p>
+   <p>Precio sugerido para alcanzar el objetivo:
+    <b>${money(precioSugerido)}</b>
+   </p>
+  </div>`;
+ }).join("")||
+ '<p class="muted">No hay productos cargados.</p>';
+}
+
 /* LECTOR DE CÓDIGOS DE BARRAS */
 
 let scannerStream=null;
@@ -1540,6 +1947,7 @@ function renderTodo(){
  renderLocal();
  renderFacturacion();
  renderBase();
+ renderPanel();
 }
 
 /* INICIALIZACIÓN */
@@ -1555,7 +1963,6 @@ if("serviceWorker" in navigator){
   navigator.serviceWorker.register("./sw.js")
    .then(reg=>{
     console.log("Mi Comercio: servicio offline activado.");
-
     reg.update().catch(()=>{});
    })
    .catch(error=>{
