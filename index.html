@@ -670,6 +670,8 @@ function normalizarDB(datos){
    datos.empleados.filter(x=>x&&typeof x==="object"):[],
   clientes:Array.isArray(datos.clientes)?
    datos.clientes.filter(x=>x&&typeof x==="object"):[],
+  movimientos:Array.isArray(datos.movimientos)?
+   datos.movimientos.filter(x=>x&&typeof x==="object"):[],
   config:{
    stockMinimo:Math.max(0,numero(config.stockMinimo,5)),
    stockObjetivo:Math.max(1,numero(config.stockObjetivo,15)),
@@ -1478,7 +1480,21 @@ function validarBackupSeguro(archivo){
       }
     }
   }
+  if(datos.movimientos !== undefined){
+    if(!Array.isArray(datos.movimientos)){
+      throw new Error("El historial de movimientos no es válido.");
+    }
 
+    for(const movimiento of datos.movimientos){
+      if(
+        !movimiento ||
+        typeof movimiento !== "object" ||
+        Array.isArray(movimiento)
+      ){
+        throw new Error("Se encontró un movimiento inválido.");
+      }
+    }
+  }
   if(
     !datos.config ||
     typeof datos.config !== "object" ||
@@ -2149,7 +2165,420 @@ if("serviceWorker" in navigator){
    });
  });
 }
+/* HISTORIAL DE OPERACIONES */
 
+function registrarMovimiento(tipo, detalle){
+  if(!Array.isArray(db.movimientos)){
+    db.movimientos=[];
+  }
+
+  db.movimientos.push({
+    id:uid(),
+    fecha:new Date().toISOString(),
+    tipo,
+    descripcion:detalle.descripcion||tipo,
+    producto:detalle.producto||"",
+    codigo:detalle.codigo||"",
+    cantidad:numero(detalle.cantidad),
+    referencia:detalle.referencia||""
+  });
+
+  // Se conservan los últimos 5000 movimientos.
+  if(db.movimientos.length>5000){
+    db.movimientos=db.movimientos.slice(-5000);
+  }
+
+  guardar();
+  renderHistorial();
+}
+
+function instalarAuditoria(nombreFuncion,tipo,obtenerDetalle){
+  const original=window[nombreFuncion];
+
+  if(typeof original!=="function")return;
+
+  window[nombreFuncion]=function(...args){
+    const contexto=obtenerDetalle("antes",args);
+    const estadoAnterior=JSON.stringify(db);
+
+    const resultado=original.apply(this,args);
+
+    if(JSON.stringify(db)!==estadoAnterior){
+      const detalle=obtenerDetalle("despues",args,contexto);
+      registrarMovimiento(tipo,detalle||{});
+    }
+
+    return resultado;
+  };
+}
+
+function inicializarHistorial(){
+  // Compatibilidad con bases de datos anteriores.
+  if(!Array.isArray(db.movimientos)){
+    db.movimientos=[];
+    try{
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(db));
+    }catch(error){
+      console.warn("No se pudo inicializar el historial.",error);
+    }
+  }
+
+  // Crear botón de navegación.
+  const boton=document.createElement("button");
+  boton.type="button";
+  boton.textContent="🧾 Historial";
+  boton.onclick=()=>mostrar("historial",boton);
+
+  document.querySelector("nav").appendChild(boton);
+
+  // Crear la nueva sección.
+  const seccion=document.createElement("section");
+  seccion.id="historial";
+
+  seccion.innerHTML=`
+    <h2>🧾 Historial de operaciones</h2>
+
+    <div class="card">
+      <div class="notice">
+        Registro cronológico de las operaciones realizadas en Mi Comercio Integral.
+        Se conservan los últimos 5000 movimientos.
+      </div>
+
+      <label>Buscar por producto, código o detalle</label>
+      <input
+        id="historialBuscar"
+        placeholder="Escribí para buscar..."
+      >
+
+      <div class="row">
+        <div>
+          <label>Tipo de operación</label>
+          <select id="historialTipo">
+            <option value="">Todos los movimientos</option>
+            <option value="Venta">Ventas</option>
+            <option value="Recepción">Recepciones</option>
+            <option value="Edición de producto">Ediciones de productos</option>
+            <option value="Eliminación de producto">Eliminaciones de productos</option>
+            <option value="Alta de empleado">Altas de empleados</option>
+            <option value="Alta de cliente">Altas de clientes</option>
+            <option value="Eliminación de empleado">Bajas de empleados</option>
+            <option value="Eliminación de cliente">Bajas de clientes</option>
+          </select>
+        </div>
+        <div>
+          <label>Desde</label>
+          <input type="date" id="historialDesde">
+        </div>
+      </div>
+
+      <label>Hasta</label>
+      <input type="date" id="historialHasta">
+
+      <div class="actions">
+        <button class="btn secondary" id="historialLimpiar">
+          Limpiar filtros
+        </button>
+        <button class="btn primary" id="historialExportar">
+          Exportar resultados CSV
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="grid">
+        <div class="stat">
+          Movimientos encontrados
+          <strong id="historialCantidad">0</strong>
+        </div>
+        <div class="stat">
+          Movimientos registrados
+          <strong id="historialTotal">0</strong>
+        </div>
+      </div>
+
+      <div id="historialLista"></div>
+    </div>
+  `;
+
+  $("base").parentNode.insertBefore(seccion,$("base"));
+
+  // Actualizar el historial al cambiar de pestaña.
+  const mostrarOriginal=window.mostrar;
+
+  window.mostrar=function(tab,btn){
+    mostrarOriginal(tab,btn);
+
+    if(tab==="historial"){
+      renderHistorial();
+    }
+  };
+
+  // Filtros.
+  ["historialBuscar","historialTipo","historialDesde","historialHasta"]
+    .forEach(id=>{
+      $(id).addEventListener("input",renderHistorial);
+      $(id).addEventListener("change",renderHistorial);
+    });
+
+  $("historialLimpiar").addEventListener("click",()=>{
+    $("historialBuscar").value="";
+    $("historialTipo").value="";
+    $("historialDesde").value="";
+    $("historialHasta").value="";
+    renderHistorial();
+  });
+
+  $("historialExportar").addEventListener(
+    "click",
+    exportarHistorialCSV
+  );
+
+  // Registrar operaciones existentes.
+  instalarAuditoria(
+    "registrarRecepcion",
+    "Recepción",
+    (fase,args,contexto)=>{
+      if(fase==="despues"){
+        const r=db.recepciones[db.recepciones.length-1];
+        if(!r)return {};
+        return {
+          descripcion:"Ingreso de mercadería: "+r.producto,
+          producto:r.producto,
+          codigo:r.codigo,
+          cantidad:r.cantidad,
+          referencia:"Proveedor: "+(r.proveedor||"-")
+        };
+      }
+      return {};
+    }
+  );
+
+  instalarAuditoria(
+    "registrarVenta",
+    "Venta",
+    (fase,args,contexto)=>{
+      if(fase==="despues"){
+        const v=db.ventas[db.ventas.length-1];
+        if(!v)return {};
+        return {
+          descripcion:"Venta de "+v.producto,
+          producto:v.producto,
+          codigo:v.codigo,
+          cantidad:v.cantidad,
+          referencia:"Total: "+money(v.total)
+        };
+      }
+      return {};
+    }
+  );
+
+  instalarAuditoria(
+    "editarProducto",
+    "Edición de producto",
+    (fase,args,contexto)=>{
+      if(fase==="antes"){
+        const p=db.productos.find(x=>x.id===args[0]);
+        return p?{nombre:p.nombre,codigo:p.codigo}:{};
+      }
+
+      const p=db.productos.find(x=>x.id===args[0]);
+
+      return {
+        descripcion:"Datos modificados: "+(p?p.nombre:contexto.nombre),
+        producto:p?p.nombre:contexto.nombre,
+        codigo:p?p.codigo:contexto.codigo
+      };
+    }
+  );
+
+  instalarAuditoria(
+    "eliminarProducto",
+    "Eliminación de producto",
+    (fase,args,contexto)=>{
+      if(fase==="antes"){
+        const p=db.productos.find(x=>x.id===args[0]);
+        return p?{nombre:p.nombre,codigo:p.codigo,cantidad:stock(p)}:{};
+      }
+
+      return {
+        descripcion:"Producto eliminado: "+contexto.nombre,
+        producto:contexto.nombre,
+        codigo:contexto.codigo,
+        cantidad:contexto.cantidad
+      };
+    }
+  );
+
+  instalarAuditoria(
+    "agregarEmpleado",
+    "Alta de empleado",
+    (fase)=>{
+      if(fase==="despues"){
+        const e=db.empleados[db.empleados.length-1];
+        return {
+          descripcion:"Empleado agregado: "+(e?e.nombre:""),
+          referencia:e?e.puesto:""
+        };
+      }
+      return {};
+    }
+  );
+
+  instalarAuditoria(
+    "agregarCliente",
+    "Alta de cliente",
+    (fase)=>{
+      if(fase==="despues"){
+        const c=db.clientes[db.clientes.length-1];
+        return {
+          descripcion:"Cliente agregado: "+(c?c.nombre:""),
+          referencia:c?c.telefono:""
+        };
+      }
+      return {};
+    }
+  );
+
+  instalarAuditoria(
+    "borrarRegistro",
+    "Eliminación de registro",
+    (fase,args,contexto)=>{
+      if(fase==="antes"){
+        const tipo=args[0];
+        const registro=db[tipo]?.find(x=>x.id===args[1]);
+        return {
+          tipo,
+          nombre:registro?.nombre||""
+        };
+      }
+
+      const esEmpleado=contexto.tipo==="empleados";
+
+      return {
+        descripcion:(esEmpleado?"Empleado":"Cliente")+
+          " eliminado: "+contexto.nombre,
+        referencia:contexto.nombre
+      };
+    }
+  );
+
+  renderHistorial();
+}
+
+function obtenerMovimientosFiltrados(){
+  const movimientos=Array.isArray(db.movimientos)?
+    db.movimientos:[];
+
+  const texto=$("historialBuscar").value.trim().toLowerCase();
+  const tipo=$("historialTipo").value;
+  const desde=$("historialDesde").value;
+  const hasta=$("historialHasta").value;
+
+  return movimientos.filter(m=>{
+    const fecha=fechaLocal(new Date(m.fecha));
+
+    if(tipo&&m.tipo!==tipo)return false;
+    if(desde&&fecha<desde)return false;
+    if(hasta&&fecha>hasta)return false;
+
+    if(texto){
+      const contenido=[
+        m.tipo,
+        m.descripcion,
+        m.producto,
+        m.codigo,
+        m.referencia
+      ].join(" ").toLowerCase();
+
+      if(!contenido.includes(texto))return false;
+    }
+
+    return true;
+  }).slice().reverse();
+}
+
+function renderHistorial(){
+  if(!$("historialLista"))return;
+
+  const movimientos=obtenerMovimientosFiltrados();
+
+  $("historialCantidad").textContent=movimientos.length;
+  $("historialTotal").textContent=db.movimientos.length;
+
+  $("historialLista").innerHTML=movimientos.map(m=>
+    `<div class="item">
+      <b>${esc(m.tipo)}</b>
+      <p>${esc(m.descripcion)}</p>
+      <p>${esc(new Date(m.fecha).toLocaleString("es-AR"))}</p>
+      ${m.producto?
+        `<p>Producto: ${esc(m.producto)}</p>`:""}
+      ${m.codigo?
+        `<p>Código: ${esc(m.codigo)}</p>`:""}
+      ${numero(m.cantidad)>0?
+        `<p>Cantidad: ${numero(m.cantidad)}</p>`:""}
+      ${m.referencia?
+        `<p>${esc(m.referencia)}</p>`:""}
+    </div>`
+  ).join("")||
+  '<p class="muted">No hay movimientos que coincidan con los filtros.</p>';
+}
+
+function exportarHistorialCSV(){
+  const movimientos=obtenerMovimientosFiltrados();
+
+  if(!movimientos.length){
+    alert("No hay movimientos para exportar.");
+    return;
+  }
+
+  const columnas=[
+    "Fecha",
+    "Tipo",
+    "Descripción",
+    "Producto",
+    "Código",
+    "Cantidad",
+    "Referencia"
+  ];
+
+  const escaparCSV=valor=>
+    '"'+String(valor??"").replace(/"/g,'""')+'"';
+
+  const filas=movimientos.map(m=>[
+    new Date(m.fecha).toLocaleString("es-AR"),
+    m.tipo,
+    m.descripcion,
+    m.producto,
+    m.codigo,
+    m.cantidad,
+    m.referencia
+  ]);
+
+  const contenido="\uFEFF"+
+    [columnas,...filas]
+      .map(fila=>fila.map(escaparCSV).join(";"))
+      .join("\r\n");
+
+  const blob=new Blob(
+    [contenido],
+    {type:"text/csv;charset=utf-8"}
+  );
+
+  const url=URL.createObjectURL(blob);
+  const enlace=document.createElement("a");
+
+  enlace.href=url;
+  enlace.download="historial-mi-comercio-"+hoy()+".csv";
+
+  document.body.appendChild(enlace);
+  enlace.click();
+  enlace.remove();
+
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+// Activar el módulo.
+inicializarHistorial();
 </script>
 
 </body>
