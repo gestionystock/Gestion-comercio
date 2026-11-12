@@ -1,59 +1,189 @@
 
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es-AR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#172554">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mi Comercio">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
 <title>Mi Comercio Integral</title>
+
 <style>
-:root{--navy:#172554;--blue:#1d4ed8;--bg:#f1f5f9;--line:#dbe3ef;--green:#15803d;--red:#b91c1c;--orange:#c2410c}
+:root{
+ --navy:#172554;
+ --blue:#1d4ed8;
+ --bg:#f1f5f9;
+ --line:#dbe3ef;
+ --green:#15803d;
+ --red:#b91c1c;
+ --orange:#c2410c;
+ --white:#fff;
+}
 *{box-sizing:border-box}
-body{margin:0;padding:12px 12px 30px;font-family:Arial,sans-serif;background:var(--bg);color:#172554}
-header{background:var(--navy);color:white;padding:19px;border-radius:14px;margin-bottom:12px}
+body{
+ margin:0;
+ padding:12px 12px 30px;
+ font-family:Arial,sans-serif;
+ background:var(--bg);
+ color:var(--navy);
+}
+header{
+ background:var(--navy);
+ color:white;
+ padding:19px;
+ border-radius:14px;
+ margin-bottom:12px;
+}
 header h1{margin:0 0 5px;font-size:23px}
 header p{margin:0;color:#cbd5e1;font-size:13px}
-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:14px}
-nav button{border:0;border-radius:9px;padding:12px 5px;background:#dbeafe;color:var(--navy);font-weight:bold;font-size:13px}
+nav{
+ display:grid;
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:7px;
+ margin-bottom:14px;
+}
+nav button{
+ border:0;
+ border-radius:9px;
+ padding:12px 5px;
+ background:#dbeafe;
+ color:var(--navy);
+ font-weight:bold;
+ font-size:13px;
+}
 nav button.active{background:var(--navy);color:white}
 section{display:none}
 section.active{display:block}
-.card{background:white;padding:14px;border-radius:12px;margin-bottom:12px;box-shadow:0 2px 7px #0000000b}
+.card{
+ background:white;
+ padding:14px;
+ border-radius:12px;
+ margin-bottom:12px;
+ box-shadow:0 2px 7px #0000000b;
+}
 h2{font-size:19px;margin:4px 0 13px}
 h3{font-size:15px;margin:5px 0 10px}
-label{display:block;font-size:12px;font-weight:bold;margin:10px 0 5px}
-input,select,textarea{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px;background:white;color:#172554}
-textarea{min-height:65px}
+label{
+ display:block;
+ font-size:12px;
+ font-weight:bold;
+ margin:10px 0 5px;
+}
+input,select,textarea{
+ width:100%;
+ padding:11px;
+ border:1px solid #cbd5e1;
+ border-radius:8px;
+ font-size:15px;
+ background:white;
+ color:var(--navy);
+}
+input:focus,select:focus,textarea:focus{
+ outline:2px solid #93c5fd;
+ border-color:var(--blue);
+}
+textarea{min-height:65px;resize:vertical}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 button{cursor:pointer}
-.btn{border:0;border-radius:8px;padding:11px 12px;font-weight:bold}
-.primary{background:var(--blue);color:white;width:100%;margin-top:10px}
-.secondary{background:#e2e8f0;color:#172554}
+button:disabled{opacity:.5;cursor:not-allowed}
+.btn{
+ border:0;
+ border-radius:8px;
+ padding:11px 12px;
+ font-weight:bold;
+}
+.primary{
+ background:var(--blue);
+ color:white;
+ width:100%;
+ margin-top:10px;
+}
+.secondary{background:#e2e8f0;color:var(--navy)}
 .danger{background:#fee2e2;color:#991b1b}
 .tiny{padding:7px 9px;font-size:12px}
-.item{border:1px solid var(--line);padding:11px;border-radius:9px;margin:8px 0;background:#fff}
+.item{
+ border:1px solid var(--line);
+ padding:11px;
+ border-radius:9px;
+ margin:8px 0;
+ background:#fff;
+ overflow-wrap:anywhere;
+}
 .item p{font-size:12px;margin:5px 0;color:#475569}
 .muted{font-size:12px;color:#64748b}
 .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-.stat{background:#eff6ff;border-radius:9px;padding:12px;font-size:12px}
-.stat strong{display:block;font-size:19px;margin-top:5px}
+.stat{
+ background:#eff6ff;
+ border-radius:9px;
+ padding:12px;
+ font-size:12px;
+}
+.stat strong{
+ display:block;
+ font-size:19px;
+ margin-top:5px;
+ overflow-wrap:anywhere;
+}
 .green{color:var(--green)}
 .redtext{color:var(--red)}
 .orangetext{color:var(--orange)}
 .tablewrap{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:12px}
-th,td{padding:8px 5px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th,td{
+ padding:8px 5px;
+ border-bottom:1px solid var(--line);
+ text-align:left;
+ white-space:nowrap;
+}
 .hidden{display:none!important}
-.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.actions{
+ display:flex;
+ gap:6px;
+ flex-wrap:wrap;
+ margin-top:8px;
+}
 .actions button{width:auto}
-video{width:100%;border-radius:10px;background:#0f172a;max-height:260px}
+video{
+ width:100%;
+ border-radius:10px;
+ background:#0f172a;
+ max-height:260px;
+}
 canvas{width:100%;max-height:260px}
-.notice{padding:10px;border-radius:8px;background:#eff6ff;font-size:12px;color:#1e3a8a;margin:8px 0}
-footer{text-align:center;color:#64748b;font-size:11px;padding:15px}
-@media(min-width:650px){body{max-width:900px;margin:auto}nav{grid-template-columns:repeat(5,1fr)}}
+.notice{
+ padding:10px;
+ border-radius:8px;
+ background:#eff6ff;
+ font-size:12px;
+ color:#1e3a8a;
+ margin:8px 0;
+}
+.notice.warning{background:#fff7ed;color:#9a3412}
+footer{
+ text-align:center;
+ color:#64748b;
+ font-size:11px;
+ padding:15px;
+}
+@media(min-width:650px){
+ body{max-width:900px;margin:auto}
+ nav{grid-template-columns:repeat(5,1fr)}
+}
+@media(max-width:380px){
+ body{padding:8px}
+ .card{padding:11px}
+ nav button{font-size:12px;padding:11px 3px}
+ .row{gap:6px}
+}
 </style>
 </head>
+
 <body>
+
 <header>
 <h1>Mi Comercio Integral</h1>
 <p>Gestión de mercadería, ventas, personal y clientes</p>
@@ -69,31 +199,58 @@ footer{text-align:center;color:#64748b;font-size:11px;padding:15px}
 
 <section id="recepcion" class="active">
 <h2>📦 Recepción de mercadería</h2>
+
 <div class="card">
 <h3>Registrar ingreso de mercadería</h3>
+
 <div class="row">
-<div><label>Fecha</label><input type="date" id="rFecha"></div>
-<div><label>Factura</label><input id="rFactura" placeholder="N° factura"></div>
+<div>
+<label>Fecha</label>
+<input type="date" id="rFecha">
 </div>
+<div>
+<label>Factura</label>
+<input id="rFactura" placeholder="N° factura">
+</div>
+</div>
+
 <label>Proveedor</label>
 <input id="rProveedor" placeholder="Nombre del proveedor">
+
 <label>Código de barras</label>
 <div class="row">
 <input id="rCodigo" inputmode="numeric" placeholder="Escanear o escribir">
 <button class="btn secondary" onclick="abrirScanner('rCodigo')">📷 Escanear</button>
 </div>
+
 <label>Producto</label>
 <input id="rNombre" placeholder="Nombre del producto">
+
 <div class="row">
-<div><label>Cantidad recibida</label><input id="rCantidad" type="number" min="1"></div>
-<div><label>Vencimiento</label><input id="rVencimiento" type="date"></div>
+<div>
+<label>Cantidad recibida</label>
+<input id="rCantidad" type="number" min="1" step="1">
 </div>
+<div>
+<label>Vencimiento</label>
+<input id="rVencimiento" type="date">
+</div>
+</div>
+
 <div class="row">
-<div><label>Costo unitario ($)</label><input id="rCosto" type="number" min="0" step=".01"></div>
-<div><label>Precio de venta ($)</label><input id="rPrecio" type="number" min="0" step=".01"></div>
+<div>
+<label>Costo unitario ($)</label>
+<input id="rCosto" type="number" min="0" step="0.01">
 </div>
+<div>
+<label>Precio de venta ($)</label>
+<input id="rPrecio" type="number" min="0" step="0.01">
+</div>
+</div>
+
 <button class="btn primary" onclick="registrarRecepcion()">Registrar recepción</button>
 </div>
+
 <div class="card">
 <h3>Historial de recepciones</h3>
 <div id="historialRecepciones"></div>
@@ -102,12 +259,14 @@ footer{text-align:center;color:#64748b;font-size:11px;padding:15px}
 
 <section id="deposito">
 <h2>🏬 Depósito interno</h2>
+
 <div class="card">
 <div class="grid">
 <div class="stat">Productos<strong id="dProductos">0</strong></div>
 <div class="stat">Unidades<strong id="dUnidades">0</strong></div>
 </div>
 </div>
+
 <div class="card">
 <h3>Inventario por producto y lote</h3>
 <input id="buscarDeposito" placeholder="Buscar producto o código..." oninput="renderDeposito()">
@@ -117,29 +276,44 @@ footer{text-align:center;color:#64748b;font-size:11px;padding:15px}
 
 <section id="local">
 <h2>🛒 Ventas del local</h2>
+
 <div class="card">
 <h3>Escanear o buscar producto</h3>
+
 <div class="row">
 <input id="buscarLocal" placeholder="Código de barras o nombre" inputmode="search" oninput="buscarLocal()">
 <button class="btn secondary" onclick="abrirScanner('buscarLocal')">📷 Cámara</button>
 </div>
+
 <div id="resultadosLocal"></div>
+
 <label>Producto</label>
 <select id="ventaProducto" onchange="precioSugerido()">
 <option value="">Seleccionar producto</option>
 </select>
+
 <div class="row">
-<div><label>Cantidad</label><input id="ventaCantidad" type="number" min="1" step="1" value="1"></div>
-<div><label>Descuento (%)</label><input id="ventaDescuento" type="number" min="0" max="100" value="0"></div>
+<div>
+<label>Cantidad</label>
+<input id="ventaCantidad" type="number" min="1" step="1" value="1">
 </div>
+<div>
+<label>Descuento (%)</label>
+<input id="ventaDescuento" type="number" min="0" max="100" step="0.01" value="0">
+</div>
+</div>
+
 <label>Precio unitario ($)</label>
-<input id="ventaPrecio" type="number" min="0" step=".01">
+<input id="ventaPrecio" type="number" min="0" step="0.01">
+
 <button class="btn primary" onclick="registrarVenta()">Confirmar venta y descontar stock</button>
 </div>
+
 <div class="card">
 <h3>Alertas de stock y vencimientos</h3>
 <div id="alertas"></div>
 </div>
+
 <div class="card">
 <h3>Productos disponibles</h3>
 <div id="listaLocal"></div>
@@ -148,6 +322,7 @@ footer{text-align:center;color:#64748b;font-size:11px;padding:15px}
 
 <section id="facturacion">
 <h2>📊 Facturación y estadísticas</h2>
+
 <div class="card">
 <div class="grid">
 <div class="stat">Ventas acumuladas<strong id="fVentas">$0</strong></div>
@@ -156,6 +331,7 @@ footer{text-align:center;color:#64748b;font-size:11px;padding:15px}
 <div class="stat">Operaciones<strong id="fOperaciones">0</strong></div>
 </div>
 </div>
+
 <div class="card">
 <h3>Ventas por período</h3>
 <label>Período</label>
@@ -167,11 +343,13 @@ footer{text-align:center;color:#64748b;font-size:11px;padding:15px}
 </select>
 <div id="resumenPeriodo"></div>
 </div>
+
 <div class="card">
 <h3>Gráfico de ventas por día</h3>
 <canvas id="grafico" width="700" height="280"></canvas>
-<p class="muted">Importes en pesos argentinos. El gráfico se actualiza al registrar ventas.</p>
+<p class="muted">Importes en pesos argentinos. Se actualiza al registrar ventas.</p>
 </div>
+
 <div class="card">
 <h3>Historial de ventas</h3>
 <div id="historialVentas"></div>
@@ -180,27 +358,55 @@ footer{text-align:center;color:#64748b;font-size:11px;padding:15px}
 
 <section id="base">
 <h2>👥 Personal y clientes</h2>
+
 <div class="card">
 <h3>Empleados</h3>
-<label>Nombre y apellido</label><input id="eNombre">
-<label>Puesto</label><input id="ePuesto" placeholder="Caja, depósito, atención...">
-<label>Capacidades y tareas</label><textarea id="eCapacidades"></textarea>
+
+<label>Nombre y apellido</label>
+<input id="eNombre" placeholder="Nombre completo">
+
+<label>Puesto</label>
+<input id="ePuesto" placeholder="Caja, depósito, atención...">
+
+<label>Capacidades y tareas</label>
+<textarea id="eCapacidades"></textarea>
+
 <label>Rendimiento</label>
 <select id="eRendimiento">
-<option>Excelente</option><option>Muy bueno</option><option>Bueno</option><option>Regular</option><option>Necesita mejorar</option>
+<option>Excelente</option>
+<option>Muy bueno</option>
+<option>Bueno</option>
+<option>Regular</option>
+<option>Necesita mejorar</option>
 </select>
-<label>Observaciones</label><textarea id="eObs"></textarea>
+
+<label>Observaciones</label>
+<textarea id="eObs"></textarea>
+
 <button class="btn primary" onclick="agregarEmpleado()">Guardar empleado</button>
 <div id="listaEmpleados"></div>
 </div>
+
 <div class="card">
 <h3>Clientes y fidelización</h3>
-<label>Nombre</label><input id="cNombre">
+
+<label>Nombre</label>
+<input id="cNombre" placeholder="Nombre del cliente">
+
 <div class="row">
-<div><label>Teléfono</label><input id="cTelefono" type="tel"></div>
-<div><label>Correo</label><input id="cCorreo" type="email"></div>
+<div>
+<label>Teléfono</label>
+<input id="cTelefono" type="tel">
 </div>
-<label>Observaciones / preferencias</label><textarea id="cObs"></textarea>
+<div>
+<label>Correo</label>
+<input id="cCorreo" type="email">
+</div>
+</div>
+
+<label>Observaciones / preferencias</label>
+<textarea id="cObs"></textarea>
+
 <button class="btn primary" onclick="agregarCliente()">Guardar cliente</button>
 <div id="listaClientes"></div>
 </div>
@@ -208,656 +414,30 @@ footer{text-align:center;color:#64748b;font-size:11px;padding:15px}
 
 <div class="card">
 <h3>💾 Copias de seguridad</h3>
-<p class="muted">Exportá regularmente una copia JSON. La copia queda en el dispositivo donde la descargues.</p>
+<p class="muted">Exportá regularmente una copia JSON. Guardala en un lugar seguro. La copia contiene los datos comerciales de este dispositivo.</p>
+
 <button class="btn primary" onclick="exportarBackup()">Descargar copia de seguridad</button>
+
 <label>Restaurar copia JSON</label>
 <input type="file" id="archivoBackup" accept=".json,application/json">
+
 <button class="btn secondary" style="width:100%;margin-top:8px" onclick="importarBackup()">Restaurar datos</button>
+
+<div class="notice warning">
+La restauración reemplaza los datos actuales. Descargá primero una copia de seguridad antes de continuar.
+</div>
 </div>
 
 <div class="card">
 <h3>📷 Lector de códigos</h3>
+
 <div id="scannerPanel" class="hidden">
 <video id="scannerVideo" playsinline autoplay muted></video>
-<p id="scannerEstado" class="muted">Solicitando cámara...</p>
+<p id="scannerEstado" class="muted">Preparando cámara...</p>
 <button class="btn danger" style="width:100%" onclick="cerrarScanner()">Cerrar cámara</button>
 </div>
-<p class="muted">La cámara necesita permiso y conexión HTTPS. Si el navegador no admite lectura automática, podés escribir o usar un lector Bluetooth como teclado.</p>
+
+<p class="muted">La cámara requiere permiso y una conexión HTTPS. La lectura automática depende de la compatibilidad del navegador. También podés escribir el código o utilizar un lector Bluetooth.</p>
 </div>
+
 <footer>Mi Comercio Integral · Datos guardados en este dispositivo</footer>
-
-
-<script>
-"use strict";
-
-const STORAGE_KEY="mi_comercio_integral_v3";
-const OLD_KEYS=["mi_comercio_productos_v1","mi_comercio_integral_v2"];
-const $=id=>document.getElementById(id);
-const hoy=()=>new Date().toISOString().slice(0,10);
-const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
-const money=n=>Number(n||0).toLocaleString("es-AR",{style:"currency",currency:"ARS",maximumFractionDigits:2});
-const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-
-function nuevoDB(){
- return {productos:[],recepciones:[],ventas:[],empleados:[],clientes:[]};
-}
-
-function normalizarProducto(p){
- let lotes=Array.isArray(p.lotes)?p.lotes:[];
- if(!lotes.length&&Number(p.stock||0)>0){
-  lotes=[{
-   id:uid(),cantidad:Number(p.stock),
-   vencimiento:p.vencimiento||"",
-   costo:Number(p.costo||0),
-   precio:Number(p.precio||p.venta||0),
-   fecha:p.fechaIngreso||hoy()
-  }];
- }
- return {
-  id:p.id||uid(),
-  codigo:String(p.codigo||p.barcode||""),
-  nombre:p.nombre||p.name||"Producto",
-  lotes
- };
-}
-
-function cargarDB(){
- try{
-  const raw=localStorage.getItem(STORAGE_KEY);
-  if(raw){
-   let d=JSON.parse(raw);
-   d={...nuevoDB(),...d};
-   d.productos=(d.productos||[]).map(normalizarProducto);
-   return d;
-  }
-  for(const key of OLD_KEYS){
-   const old=localStorage.getItem(key);
-   if(old){
-    let parsed=JSON.parse(old);
-    let arr=Array.isArray(parsed)?parsed:(parsed.productos||[]);
-    if(arr.length)return {...nuevoDB(),productos:arr.map(normalizarProducto)};
-   }
-  }
- }catch(e){console.warn(e);}
-
- return {...nuevoDB(),productos:[
-  {id:uid(),codigo:"7790001000011",nombre:"Leche entera",lotes:[{id:uid(),cantidad:12,vencimiento:"",costo:900,precio:1300,fecha:hoy()}]},
-  {id:uid(),codigo:"7790001000028",nombre:"Galletitas dulces",lotes:[{id:uid(),cantidad:20,vencimiento:"",costo:650,precio:1000,fecha:hoy()}]},
-  {id:uid(),codigo:"7790001000035",nombre:"Arroz 1 kg",lotes:[{id:uid(),cantidad:15,vencimiento:"",costo:1100,precio:1600,fecha:hoy()}]}
- ]};
-}
-
-let db=cargarDB();
-
-function guardar(){
- localStorage.setItem(STORAGE_KEY,JSON.stringify(db));
- renderTodo();
-}
-
-function mostrar(tab,btn){
- document.querySelectorAll("section").forEach(s=>s.classList.toggle("active",s.id===tab));
- document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b===btn));
- renderTodo();
-}
-
-function stock(p){
- return (p.lotes||[]).reduce((s,l)=>s+Math.max(0,Number(l.cantidad)||0),0);
-}
-
-function ordenarLotes(p){
- p.lotes.sort((a,b)=>{
-  if(!a.vencimiento)return 1;
-  if(!b.vencimiento)return -1;
-  return a.vencimiento.localeCompare(b.vencimiento);
- });
-}
-
-function registrarRecepcion(){
- const nombre=$("rNombre").value.trim();
- const cantidad=Number($("rCantidad").value);
- const codigo=$("rCodigo").value.trim();
- const fecha=$("rFecha").value||hoy();
- const costo=Number($("rCosto").value);
- const precio=Number($("rPrecio").value);
-
- if(!nombre||!Number.isInteger(cantidad)||cantidad<1||costo<0||precio<0){
-  alert("Completá nombre, cantidad entera y valores válidos.");
-  return;
- }
-
- let p=db.productos.find(x=>codigo&&x.codigo===codigo);
- if(!p){
-  p={id:uid(),codigo,nombre,lotes:[]};
-  db.productos.push(p);
- }
-
- p.nombre=nombre;
- if(codigo)p.codigo=codigo;
-
- p.lotes.push({
-  id:uid(),cantidad,
-  vencimiento:$("rVencimiento").value,
-  costo,precio,fecha
- });
-
- db.recepciones.push({
-  id:uid(),fecha,
-  proveedor:$("rProveedor").value,
-  factura:$("rFactura").value,
-  producto:nombre,codigo,cantidad,
-  vencimiento:$("rVencimiento").value,
-  costo,precio
- });
-
- guardar();
-
- ["rProveedor","rFactura","rCodigo","rNombre","rCantidad","rVencimiento","rCosto","rPrecio"].forEach(k=>$(k).value="");
- $("rFecha").value=hoy();
- alert("Recepción registrada y stock actualizado.");
-}
-
-function renderRecepciones(){
- $("historialRecepciones").innerHTML=db.recepciones.slice().reverse().map(r=>
- `<div class="item">
- <b>${esc(r.producto)}</b>
- <p>${esc(r.fecha)} · Proveedor: ${esc(r.proveedor||"-")} · Factura: ${esc(r.factura||"-")}</p>
- <p>Cantidad: ${r.cantidad} · Vencimiento: ${r.vencimiento||"No indicado"}</p>
- </div>`
- ).join("")||'<p class="muted">Todavía no hay recepciones.</p>';
-}
-
-function renderDeposito(){
- const q=($("buscarDeposito").value||"").toLowerCase();
- const ps=db.productos.filter(p=>
-  p.nombre.toLowerCase().includes(q)||p.codigo.includes(q)
- );
-
- $("dProductos").textContent=db.productos.length;
- $("dUnidades").textContent=db.productos.reduce((s,p)=>s+stock(p),0);
-
- $("listaDeposito").innerHTML=ps.map(p=>
- `<div class="item">
- <b>${esc(p.nombre)}</b>
- <p>Código: ${esc(p.codigo||"-")} · Stock total: <b>${stock(p)}</b></p>
- ${p.lotes.map(l=>
-  `<p>Lote ${esc(l.id)} · Cantidad ${l.cantidad} · Vence ${l.vencimiento||"No indicado"} · Costo ${money(l.costo)} · Venta ${money(l.precio)}</p>`
- ).join("")}
- <div class="actions">
- <button class="btn secondary tiny" onclick="editarProducto('${p.id}')">Editar datos</button>
- <button class="btn danger tiny" onclick="eliminarProducto('${p.id}')">Eliminar producto</button>
- </div>
- </div>`
- ).join("")||'<p class="muted">No hay productos que coincidan.</p>';
-}
-
-function editarProducto(pid){
- let p=db.productos.find(x=>x.id===pid);
- if(!p)return;
- let nombre=prompt("Nombre del producto:",p.nombre);
- if(nombre===null)return;
- let codigo=prompt("Código de barras:",p.codigo);
- if(codigo===null)return;
- p.nombre=nombre.trim()||p.nombre;
- p.codigo=codigo.trim();
- guardar();
-}
-
-function eliminarProducto(pid){
- if(!confirm("¿Eliminar el producto y sus lotes?"))return;
- db.productos=db.productos.filter(p=>p.id!==pid);
- guardar();
-}
-
-function poblarSelect(){
- let sel=$("ventaProducto"),prev=sel.value;
- sel.innerHTML='<option value="">Seleccionar producto</option>'+
- db.productos.filter(p=>stock(p)>0).map(p=>
- `<option value="${p.id}">${esc(p.nombre)} — ${stock(p)} u.</option>`
- ).join("");
- if(db.productos.some(p=>p.id===prev&&stock(p)>0))sel.value=prev;
-}
-
-function precioSugerido(){
- let p=db.productos.find(x=>x.id===$("ventaProducto").value);
- if(!p)return;
- ordenarLotes(p);
- let l=p.lotes.find(x=>Number(x.cantidad)>0);
- $("ventaPrecio").value=l?Number(l.precio||0):0;
-}
-
-function buscarLocal(){
- let q=$("buscarLocal").value.toLowerCase().trim();
- if(!q){$("resultadosLocal").innerHTML="";return;}
- let arr=db.productos.filter(p=>
-  p.nombre.toLowerCase().includes(q)||p.codigo.toLowerCase().includes(q)
- );
- $("resultadosLocal").innerHTML=arr.map(p=>
- `<div class="item">
- <b>${esc(p.nombre)}</b>
- <p>Código ${esc(p.codigo||"-")} · Stock ${stock(p)}</p>
- <button class="btn secondary tiny" onclick="seleccionarVenta('${p.id}')">Seleccionar</button>
- </div>`
- ).join("")||'<p class="muted">No se encontraron productos.</p>';
-}
-
-function seleccionarVenta(pid){
- $("ventaProducto").value=pid;
- precioSugerido();
-}
-
-function registrarVenta(){
- let p=db.productos.find(x=>x.id===$("ventaProducto").value);
- let cantidad=Number($("ventaCantidad").value);
- let desc=Number($("ventaDescuento").value);
- let precio=Number($("ventaPrecio").value);
-
- if(!p||!Number.isInteger(cantidad)||cantidad<1||
- !Number.isFinite(precio)||precio<0||desc<0||desc>100){
-  alert("Revisá producto, cantidad, precio y descuento.");
-  return;
- }
-
- if(stock(p)<cantidad){
-  alert("Stock insuficiente.");
-  return;
- }
-
- ordenarLotes(p);
- let restante=cantidad,costo=0;
-
- for(const l of p.lotes){
-  let usar=Math.min(Number(l.cantidad)||0,restante);
-  costo+=usar*Number(l.costo||0);
-  l.cantidad-=usar;
-  restante-=usar;
-  if(!restante)break;
- }
-
- const bruto=cantidad*precio;
- const total=bruto*(1-desc/100);
-
- db.ventas.push({
-  id:uid(),fecha:new Date().toISOString(),
-  producto:p.nombre,codigo:p.codigo,
-  cantidad,precio,descuento:desc,
-  total,costo,ganancia:total-costo
- });
-
- guardar();
- $("ventaCantidad").value=1;
- $("ventaDescuento").value=0;
- $("buscarLocal").value="";
- $("resultadosLocal").innerHTML="";
- alert("Venta registrada. Se descontó el stock.");
-}
-</script>
-
- 
-<script>
-function renderAlertas(){
- const hoyDate=new Date(hoy()+"T00:00:00");
- const limite=new Date(hoyDate);
- limite.setDate(limite.getDate()+30);
- let out=[];
-
- db.productos.forEach(p=>{
-  if(stock(p)<=5){
-   out.push(`<div class="item redtext">🔴 ${esc(p.nombre)} — stock bajo: ${stock(p)}</div>`);
-  }
-
-  p.lotes.forEach(l=>{
-   if(!l.vencimiento||Number(l.cantidad)<=0)return;
-   let d=new Date(l.vencimiento+"T00:00:00");
-
-   if(d<hoyDate){
-    out.push(`<div class="item redtext">🔴 ${esc(p.nombre)} — lote vencido: ${l.vencimiento} (${l.cantidad} u.)</div>`);
-   }else if(d<=limite){
-    out.push(`<div class="item orangetext">🟠 ${esc(p.nombre)} — próximo a vencer: ${l.vencimiento} (${l.cantidad} u.)</div>`);
-   }
-  });
- });
-
- $("alertas").innerHTML=out.join("")||
- '<p class="green">No hay alertas de stock o vencimiento.</p>';
-}
-
-function ventasFiltradas(){
- const modo=$("fPeriodo").value;
- const now=new Date();
-
- return db.ventas.filter(v=>{
-  let d=new Date(v.fecha);
-
-  if(modo==="todo")return true;
-  if(modo==="dia")return d.toDateString()===now.toDateString();
-
-  if(modo==="semana"){
-   return (now-d)/86400000>=0&&(now-d)/86400000<7;
-  }
-
-  return d.getMonth()===now.getMonth()&&
-         d.getFullYear()===now.getFullYear();
- });
-}
-
-function renderFacturacion(){
- const ventas=ventasFiltradas();
- const sum=k=>ventas.reduce((s,v)=>s+Number(v[k]||0),0);
-
- $("fVentas").textContent=money(sum("total"));
- $("fCostos").textContent=money(sum("costo"));
- $("fGanancia").textContent=money(sum("ganancia"));
- $("fOperaciones").textContent=ventas.length;
-
- $("resumenPeriodo").innerHTML=
- `<div class="item">
- <p>Operaciones: <b>${ventas.length}</b></p>
- <p>Ventas: <b>${money(sum("total"))}</b></p>
- <p>Costos: <b>${money(sum("costo"))}</b></p>
- <p>Ganancia bruta: <b class="green">${money(sum("ganancia"))}</b></p>
- </div>`;
-
- $("historialVentas").innerHTML=db.ventas.slice().reverse().map(v=>
- `<div class="item">
- <b>${esc(v.producto)}</b>
- <p>${new Date(v.fecha).toLocaleString("es-AR")} · Cantidad ${v.cantidad}</p>
- <p>Venta ${money(v.total)} · Costo ${money(v.costo)} · Ganancia ${money(v.ganancia)}</p>
- </div>`
- ).join("")||'<p class="muted">Todavía no hay ventas.</p>';
-
- dibujarGrafico();
-}
-
-function dibujarGrafico(){
- const c=$("grafico");
- const ctx=c.getContext("2d");
- const w=c.width,h=c.height;
-
- ctx.clearRect(0,0,w,h);
-
- const dias=[];
- for(let i=6;i>=0;i--){
-  let d=new Date();
-  d.setDate(d.getDate()-i);
-  dias.push(d);
- }
-
- const vals=dias.map(d=>
-  db.ventas.filter(v=>
-   new Date(v.fecha).toDateString()===d.toDateString()
-  ).reduce((s,v)=>s+Number(v.total||0),0)
- );
-
- const max=Math.max(1,...vals);
- const left=58,bottom=h-35,top=18;
- const usableH=bottom-top;
- const barW=48;
- const gap=(w-left-20)/7;
-
- ctx.font="12px Arial";
- ctx.strokeStyle="#cbd5e1";
- ctx.fillStyle="#475569";
- ctx.beginPath();
- ctx.moveTo(left,top);
- ctx.lineTo(left,bottom);
- ctx.lineTo(w-10,bottom);
- ctx.stroke();
-
- for(let i=0;i<5;i++){
-  let y=bottom-usableH*i/4;
-  ctx.fillStyle="#64748b";
-  ctx.fillText(Math.round(max*i/4).toString(),5,y+4);
-  ctx.strokeStyle="#e2e8f0";
-  ctx.beginPath();
-  ctx.moveTo(left,y);
-  ctx.lineTo(w-10,y);
-  ctx.stroke();
- }
-
- vals.forEach((v,i)=>{
-  let bh=v/max*(usableH-5);
-  let x=left+i*gap+8;
-  let y=bottom-bh;
-
-  ctx.fillStyle="#2563eb";
-  ctx.fillRect(x,y,barW,bh);
-
-  ctx.fillStyle="#334155";
-  ctx.fillText(
-   dias[i].toLocaleDateString("es-AR",{weekday:"short"}),
-   x,bottom+18
-  );
-
-  if(v>0){
-   ctx.fillText(
-    v>=1000?(v/1000).toFixed(1)+"k":String(Math.round(v)),
-    x,y-5
-   );
-  }
- });
-}
-
-function agregarEmpleado(){
- let nombre=$("eNombre").value.trim();
-
- if(!nombre){
-  alert("Ingresá el nombre.");
-  return;
- }
-
- db.empleados.push({
-  id:uid(),
-  nombre,
-  puesto:$("ePuesto").value,
-  capacidades:$("eCapacidades").value,
-  rendimiento:$("eRendimiento").value,
-  obs:$("eObs").value
- });
-
- ["eNombre","ePuesto","eCapacidades","eObs"].forEach(k=>$(k).value="");
- guardar();
-}
-
-function agregarCliente(){
- let nombre=$("cNombre").value.trim();
-
- if(!nombre){
-  alert("Ingresá el nombre.");
-  return;
- }
-
- db.clientes.push({
-  id:uid(),
-  nombre,
-  telefono:$("cTelefono").value,
-  correo:$("cCorreo").value,
-  obs:$("cObs").value
- });
-
- ["cNombre","cTelefono","cCorreo","cObs"].forEach(k=>$(k).value="");
- guardar();
-}
-
-function renderBase(){
- $("listaEmpleados").innerHTML=db.empleados.map(e=>
- `<div class="item">
- <b>${esc(e.nombre)}</b>
- <p>${esc(e.puesto)} · Rendimiento: ${esc(e.rendimiento)}</p>
- <p>${esc(e.capacidades)} ${esc(e.obs)}</p>
- <button class="btn danger tiny" onclick="borrarRegistro('empleados','${e.id}')">Eliminar</button>
- </div>`
- ).join("")||'<p class="muted">Sin empleados cargados.</p>';
-
- $("listaClientes").innerHTML=db.clientes.map(c=>
- `<div class="item">
- <b>${esc(c.nombre)}</b>
- <p>${esc(c.telefono)} · ${esc(c.correo)}</p>
- <p>${esc(c.obs)}</p>
- <button class="btn danger tiny" onclick="borrarRegistro('clientes','${c.id}')">Eliminar</button>
- </div>`
- ).join("")||'<p class="muted">Sin clientes cargados.</p>';
-}
-
-function borrarRegistro(tipo,id){
- if(confirm("¿Eliminar este registro?")){
-  db[tipo]=db[tipo].filter(x=>x.id!==id);
-  guardar();
- }
-}
-
-function exportarBackup(){
- const blob=new Blob(
-  [JSON.stringify(db,null,2)],
-  {type:"application/json"}
- );
-
- const url=URL.createObjectURL(blob);
- const a=document.createElement("a");
-
- a.href=url;
- a.download="mi-comercio-respaldo-"+hoy()+".json";
- a.click();
-
- setTimeout(()=>URL.revokeObjectURL(url),1000);
-}
-
-function importarBackup(){
- const file=$("archivoBackup").files[0];
-
- if(!file){
-  alert("Elegí un archivo JSON.");
-  return;
- }
-
- const reader=new FileReader();
-
- reader.onload=()=>{
-  try{
-   let d=JSON.parse(reader.result);
-
-   if(!d||!Array.isArray(d.productos))throw Error();
-
-   if(!confirm("La restauración reemplazará los datos actuales. ¿Continuar?"))return;
-
-   db={...nuevoDB(),...d};
-   db.productos=db.productos.map(normalizarProducto);
-
-   guardar();
-   alert("Copia restaurada.");
-  }catch(e){
-   alert("El archivo no es una copia válida.");
-  }
- };
-
- reader.readAsText(file);
-}
-
-/* LECTOR DE CODIGOS DE BARRAS */
-
-let scannerStream=null;
-let scannerTimer=null;
-let scannerTarget=null;
-let detector=null;
-
-async function abrirScanner(target){
- scannerTarget=target;
- $("scannerPanel").classList.remove("hidden");
-
- try{
-  if(!("BarcodeDetector" in window)){
-   $("scannerEstado").textContent=
-   "Este navegador no ofrece lectura automática integrada. Usá el campo manual o un lector Bluetooth.";
-   return;
-  }
-
-  detector=new BarcodeDetector({
-   formats:["ean_13","ean_8","upc_a","upc_e","code_128","code_39","qr_code"]
-  });
-
-  scannerStream=await navigator.mediaDevices.getUserMedia({
-   video:{facingMode:{ideal:"environment"}},
-   audio:false
-  });
-
-  $("scannerVideo").srcObject=scannerStream;
-  $("scannerEstado").textContent="Apuntá la cámara al código de barras.";
-
-  scanLoop();
-
- }catch(e){
-  $("scannerEstado").textContent=
-  "No se pudo abrir la cámara. Revisá permisos y que la página esté en HTTPS.";
-  cerrarStream();
- }
-}
-
-async function scanLoop(){
- if(!scannerStream||!detector)return;
-
- try{
-  const codes=await detector.detect($("scannerVideo"));
-
-  if(codes.length&&codes[0].rawValue){
-   $(scannerTarget).value=codes[0].rawValue;
-   cerrarScanner();
-
-   if(scannerTarget==="buscarLocal")buscarLocal();
-   return;
-  }
- }catch(e){}
-
- scannerTimer=setTimeout(scanLoop,250);
-}
-
-function cerrarStream(){
- if(scannerStream){
-  scannerStream.getTracks().forEach(t=>t.stop());
-  scannerStream=null;
- }
- if(scannerTimer)clearTimeout(scannerTimer);
-}
-
-function cerrarScanner(){
- cerrarStream();
- $("scannerPanel").classList.add("hidden");
- $("scannerVideo").srcObject=null;
-}
-
-function renderLocal(){
- poblarSelect();
-
- $("listaLocal").innerHTML=db.productos.map(p=>
- `<div class="item">
- <b>${esc(p.nombre)}</b>
- <p>Código: ${esc(p.codigo||"-")} · Stock: ${stock(p)}</p>
- </div>`
- ).join("")||'<p class="muted">No hay productos.</p>';
-
- renderAlertas();
-}
-
-function renderTodo(){
- renderRecepciones();
- renderDeposito();
- renderLocal();
- renderFacturacion();
- renderBase();
-}
-
-$("rFecha").value=hoy();
-renderTodo();
-</script>
-
-<script>
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js")
-      .then(() => console.log("Mi Comercio: modo offline activado"))
-      .catch(error => console.error("Error:", error));
-  });
-}
-</script>
-
-</body>
-</html>
- 
