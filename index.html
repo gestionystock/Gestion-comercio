@@ -1404,89 +1404,268 @@ function borrarRegistro(tipo,id){
 
 /* COPIAS DE SEGURIDAD */
 
+const BACKUP_INTERNO_KEY = "mi_comercio_respaldo_pre_restauracion_v1";
+
 function exportarBackup(){
- try{
-  const copia={
-   aplicacion:"Mi Comercio Integral",
-   version:4,
-   fechaExportacion:new Date().toISOString(),
-   datos:db
-  };
+  try{
+    const copia = {
+      aplicacion: "Mi Comercio Integral",
+      version: 4,
+      fechaExportacion: new Date().toISOString(),
+      datos: db
+    };
 
-  const blob=new Blob(
-   [JSON.stringify(copia,null,2)],
-   {type:"application/json"}
-  );
+    const blob = new Blob(
+      [JSON.stringify(copia, null, 2)],
+      {type:"application/json"}
+    );
 
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement("a");
 
-  a.href=url;
-  a.download="mi-comercio-respaldo-"+hoy()+".json";
+    enlace.href = url;
+    enlace.download = "mi-comercio-respaldo-" +
+      fechaLocal(hoy()) + ".json";
 
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
 
-  setTimeout(()=>URL.revokeObjectURL(url),1500);
+    URL.revokeObjectURL(url);
 
- }catch(e){
-  console.error(e);
-  alert("No se pudo generar la copia de seguridad.");
- }
+    alert("Copia de seguridad descargada correctamente.");
+  }catch(error){
+    console.error(error);
+    alert("No se pudo crear la copia de seguridad.");
+  }
+}
+
+function validarBackupSeguro(archivo){
+  if(
+    !archivo ||
+    typeof archivo !== "object" ||
+    Array.isArray(archivo) ||
+    archivo.aplicacion !== "Mi Comercio Integral" ||
+    !archivo.datos ||
+    typeof archivo.datos !== "object" ||
+    Array.isArray(archivo.datos)
+  ){
+    throw new Error("El archivo no pertenece a Mi Comercio Integral.");
+  }
+
+  const datos = archivo.datos;
+
+  const colecciones = [
+    "productos",
+    "recepciones",
+    "ventas",
+    "empleados",
+    "clientes"
+  ];
+
+  for(const nombre of colecciones){
+    if(!Array.isArray(datos[nombre])){
+      throw new Error("Falta una sección de datos: " + nombre);
+    }
+
+    for(const registro of datos[nombre]){
+      if(
+        !registro ||
+        typeof registro !== "object" ||
+        Array.isArray(registro)
+      ){
+        throw new Error("Hay registros inválidos en " + nombre);
+      }
+    }
+  }
+
+  if(
+    !datos.config ||
+    typeof datos.config !== "object" ||
+    Array.isArray(datos.config)
+  ){
+    throw new Error("La configuración de la copia no es válida.");
+  }
+
+  for(const producto of datos.productos){
+    if(
+      typeof producto.nombre !== "string" ||
+      !producto.nombre.trim() ||
+      !Array.isArray(producto.lotes)
+    ){
+      throw new Error("Se encontró un producto con datos inválidos.");
+    }
+
+    for(const lote of producto.lotes){
+      if(
+        !lote ||
+        typeof lote !== "object" ||
+        Array.isArray(lote)
+      ){
+        throw new Error("Se encontró un lote inválido.");
+      }
+
+      for(const campo of ["cantidad","costo","precio"]){
+        if(
+          lote[campo] !== undefined &&
+          (
+            !Number.isFinite(Number(lote[campo])) ||
+            Number(lote[campo]) < 0
+          )
+        ){
+          throw new Error("Hay cantidades o importes inválidos.");
+        }
+      }
+    }
+  }
+
+  return datos;
 }
 
 function importarBackup(){
- const file=$("archivoBackup").files[0];
+  const archivoInput = $("archivoBackup");
+  const file = archivoInput.files[0];
 
- if(!file){
-  alert("Elegí un archivo JSON.");
-  return;
- }
-
- const reader=new FileReader();
-
- reader.onload=()=>{
-  try{
-   const archivo=JSON.parse(reader.result);
-
-   const datos=archivo.datos||archivo;
-
-   if(
-    !datos||
-    typeof datos!=="object"||
-    !Array.isArray(datos.productos)
-   ){
-    throw new Error("Estructura inválida");
-   }
-
-   if(!confirm(
-    "La restauración reemplazará los datos actuales. ¿Ya descargaste una copia de seguridad y querés continuar?"
-   ))return;
-
-   const anterior=db;
-   db=normalizarDB(datos);
-
-   if(!guardar()){
-    db=anterior;
-    renderTodo();
+  if(!file){
+    alert("Elegí un archivo JSON.");
     return;
-   }
-
-   $("archivoBackup").value="";
-   alert("Copia de seguridad restaurada correctamente.");
-
-  }catch(e){
-   console.error(e);
-   alert("El archivo no es una copia válida de Mi Comercio Integral.");
   }
- };
 
- reader.onerror=()=>{
-  alert("No se pudo leer el archivo seleccionado.");
- };
+  if(file.size > 10 * 1024 * 1024){
+    alert("El archivo supera el límite permitido de 10 MB.");
+    return;
+  }
 
- reader.readAsText(file);
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    let datos;
+
+    try{
+      const archivo = JSON.parse(reader.result);
+      datos = validarBackupSeguro(archivo);
+    }catch(error){
+      console.error(error);
+      alert(
+        "No se puede restaurar este archivo.\n\n" +
+        "No tiene el formato esperado o contiene datos inválidos."
+      );
+      return;
+    }
+
+    let candidato;
+
+    try{
+      candidato = normalizarDB(datos);
+
+      if(
+        !candidato ||
+        !Array.isArray(candidato.productos) ||
+        !Array.isArray(candidato.recepciones) ||
+        !Array.isArray(candidato.ventas) ||
+        !Array.isArray(candidato.empleados) ||
+        !Array.isArray(candidato.clientes)
+      ){
+        throw new Error("No se pudo preparar la información.");
+      }
+    }catch(error){
+      console.error(error);
+      alert("No se pudo preparar la copia. Tus datos actuales no fueron modificados.");
+      return;
+    }
+
+    const fecha = archivo.fechaExportacion
+      ? new Date(archivo.fechaExportacion).toLocaleString("es-AR")
+      : "No informada";
+
+    const resumen =
+      "COPIA DE SEGURIDAD VALIDADA\n\n" +
+      "Fecha: " + fecha + "\n\n" +
+      "Productos: " + candidato.productos.length + "\n" +
+      "Recepciones: " + candidato.recepciones.length + "\n" +
+      "Ventas: " + candidato.ventas.length + "\n" +
+      "Empleados: " + candidato.empleados.length + "\n" +
+      "Clientes: " + candidato.clientes.length + "\n\n" +
+      "Antes de restaurar se guardará una copia interna " +
+      "de los datos actuales.\n\n" +
+      "La restauración reemplazará los datos actuales. " +
+      "¿Querés continuar?";
+
+    if(!confirm(resumen)){
+      return;
+    }
+
+    const dbAnterior = db;
+    const almacenamientoAnterior = localStorage.getItem(STORAGE_KEY);
+
+    try{
+      // Primero se protege la información actual.
+      const respaldoInterno = {
+        existe: almacenamientoAnterior !== null,
+        contenido: almacenamientoAnterior
+      };
+
+      localStorage.setItem(
+        BACKUP_INTERNO_KEY,
+        JSON.stringify(respaldoInterno)
+      );
+
+      // Se guarda la nueva información.
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(candidato)
+      );
+
+      db = candidato;
+
+      // Se actualiza la interfaz.
+      renderTodo();
+
+      archivoInput.value = "";
+
+      alert(
+        "¡Restauración completada!\n\n" +
+        "La copia de seguridad se restauró correctamente."
+      );
+
+    }catch(error){
+      console.error(error);
+
+      // Si algo falla, se intenta recuperar lo anterior.
+      db = dbAnterior;
+
+      try{
+        if(almacenamientoAnterior === null){
+          localStorage.removeItem(STORAGE_KEY);
+        }else{
+          localStorage.setItem(
+            STORAGE_KEY,
+            almacenamientoAnterior
+          );
+        }
+      }catch(errorRollback){
+        console.error("Error al recuperar los datos anteriores:", errorRollback);
+      }
+
+      try{
+        renderTodo();
+      }catch(errorRender){
+        console.error(errorRender);
+      }
+
+      alert(
+        "No se pudo completar la restauración.\n\n" +
+        "Se intentó recuperar la información anterior. " +
+        "No cierres la aplicación y conservá tu copia descargada."
+      );
+    }
+  };
+
+  reader.onerror = () => {
+    alert("No se pudo leer el archivo seleccionado.");
+  };
+
+  reader.readAsText(file);
 }
 
 /* PANEL DE CONTROL INTELIGENTE */
